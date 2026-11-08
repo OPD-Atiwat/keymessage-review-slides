@@ -40,6 +40,8 @@ test("quarantine stays out of the deck and central tags stay separate", () => {
 test("verified stills are 83 files and namecards are not creatives", () => {
   const files = readdirSync(new URL("../public/media/", import.meta.url));
   assert.equal(files.length, 83);
+  assert.equal(files.some((name) => name.endsWith(".bin")), false);
+  assert.ok(files.every((name) => /\.(jpe?g|png|webp)$/.test(name)));
   assert.equal(deck.thumbCount, 83);
   const namecards = deck.ads.filter((ad) => ad.assetKind === "namecard");
   assert.ok(namecards.length >= 10);

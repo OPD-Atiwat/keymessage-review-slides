@@ -81,11 +81,16 @@ def write_fonts(html: str):
         (FONTS / f"ibm-plex-sans-thai-{weight}-{kind}.woff2").write_bytes(blob)
 
 
-def image_bytes(b64: str):
-    if not b64:
+def image_bytes(value: str):
+    if not value:
         return None
+    if value.startswith("data:"):
+        comma = value.find(",")
+        if comma < 0:
+            return None
+        value = value[comma + 1 :]
     try:
-        return base64.b64decode(b64, validate=False)
+        return base64.b64decode(value, validate=False)
     except Exception:
         return None
 
