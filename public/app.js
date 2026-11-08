@@ -1,10 +1,10 @@
-import { analysisItemId } from "/shared/analysis.js";
-import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js";
-import { TABLE_HEAD } from "/shared/labels.js";
-import { rates, sumTotals, volumeFlag } from "/shared/metrics.js";
-import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js";
-import { contentBadge } from "/shared/status-labels.js";
-import { renderWeb } from "/web.js";
+import { analysisItemId } from "/shared/analysis.js?v=20261108t98";
+import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261108t98";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261108t98";
+import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261108t98";
+import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261108t98";
+import { contentBadge } from "/shared/status-labels.js?v=20261108t98";
+import { renderWeb } from "/web.js?v=20261108t98";
 
 const BOOKS = [
   { id: "Mind", name: "ถือไพ่เหนือกว่า", cls: "mind" },
@@ -31,13 +31,14 @@ const SORTS = [
 ];
 
 const deckEl = document.getElementById("deck");
-const slides = [...deckEl.querySelectorAll(".slide")];
+const slides = deckEl ? [...deckEl.querySelectorAll(".slide")] : [];
 let deck = null;
 let index = 0;
 let userMoved = false;
+const PERIOD_IDS = ["nov1_7", "oct1_7", "oct", "sep"];
 const adState = { period: "nov1_7", book: "", tag: "", sort: "revenue", q: "", page: 0, bodyKey: "", contentId: "all", statusId: "all" };
 let statusData = { ads_by_id: {}, summary: {} };
-let webView = { view: "present", book: "Mind", pages: {} };
+let webView = { view: "overview", book: "Mind", pages: {} };
 
 function setWebView(patch) {
   webView = {
@@ -1348,15 +1349,28 @@ function bindChrome() {
   });
 }
 
+function readPeriod() {
+  const node = document.getElementById("report-period");
+  const value = node && node.value;
+  if (PERIOD_IDS.includes(value)) {
+    adState.period = value;
+    return value;
+  }
+  adState.period = "nov1_7";
+  if (node) node.value = "nov1_7";
+  return "nov1_7";
+}
+
 function showWeb() {
   const root = document.getElementById("web-main");
   if (!root || !deck) return;
+  if (webView.view === "present") webView.view = "overview";
   renderWeb(root, {
     deck,
     status: statusData,
     view: webView.view,
     book: webView.book,
-    reportId: adState.period,
+    reportId: readPeriod(),
     contentId: adState.contentId,
     statusId: adState.statusId,
     pages: webView.pages,
@@ -1508,39 +1522,25 @@ async function removeAnalysis(itemId) {
 function bindWeb() {
   document.querySelectorAll("#webnav button[data-view]").forEach((button) => {
     button.addEventListener("click", () => {
-      setWebView({ view: button.dataset.view, book: button.dataset.book || webView.book });
+      const view = button.dataset.view === "present" ? "overview" : button.dataset.view;
+      setWebView({ view, book: button.dataset.book || webView.book });
+      document.body.classList.add("mode-web");
+      document.body.classList.remove("mode-present");
       markNav();
-      document.body.classList.toggle("mode-present", webView.view === "present");
-      document.body.classList.toggle("mode-web", webView.view !== "present");
-      if (webView.view !== "present") showWeb();
+      showWeb();
     });
   });
-  document.getElementById("logout").addEventListener("click", logout);
-  document.getElementById("logout-nav").addEventListener("click", logout);
-  document.getElementById("to-web").addEventListener("click", () => {
-    setWebView({ view: "overview", book: webView.book });
-    document.body.classList.remove("mode-present");
-    document.body.classList.add("mode-web");
-    markNav();
-    showWeb();
-  });
-  document.getElementById("to-analysis").addEventListener("click", () => {
-    setWebView({ view: "analysis", book: webView.book });
-    document.body.classList.remove("mode-present");
-    document.body.classList.add("mode-web");
-    markNav();
-    showWeb();
-  });
-  document.getElementById("present-period").addEventListener("change", (event) => {
-    adState.period = event.target.value;
-    document.getElementById("report-period").value = event.target.value;
-    for (const key of Object.keys(slidePages)) delete slidePages[key];
-    syncAsof();
-    renderAll();
+  const full = document.getElementById("full");
+  if (full) full.addEventListener("click", () => {
+    const target = document.getElementById("web-stage");
+    if (!target) return;
+    if (document.fullscreenElement) document.exitFullscreen();
+    else target.requestFullscreen().catch(() => {});
   });
   document.getElementById("report-period").addEventListener("change", (event) => {
     adState.period = event.target.value;
     adState.page = 0;
+    for (const key of Object.keys(webView.pages)) delete webView.pages[key];
     syncAsof();
     refreshViews();
   });
@@ -1603,19 +1603,23 @@ function fillFilters() {
 }
 
 async function init() {
-  bindChrome();
+  if (location.hash) history.replaceState(null, "", location.pathname + location.search);
+  document.body.classList.add("mode-web");
+  document.body.classList.remove("mode-present");
+  const period = document.getElementById("report-period");
+  if (period) period.value = "nov1_7";
+  adState.period = "nov1_7";
+  webView.view = "overview";
   bindWeb();
   const response = await fetch("/data/deck.json");
-  if (!response.ok) throw new Error("โหลดข้อมูลสไลด์ไม่ได้");
+  if (!response.ok) throw new Error("โหลดข้อมูลไม่ได้");
   deck = await response.json();
   statusData = await fetch("/data/ad-status.json").then((item) => item.json());
   fillFilters();
   syncAsof();
-  renderAll();
+  markNav();
   showWeb();
-  deckEl.classList.add("ready");
-  show(initialIndex(), false);
-  deckEl.dataset.hydrated = "1";
+  document.body.dataset.hydrated = "1";
   await refreshSession();
 }
 

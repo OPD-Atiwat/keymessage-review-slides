@@ -725,7 +725,7 @@ select:focus-visible,
 .scan-sheet { overflow-x: auto; }
 .scan-cols {
   display: grid;
-  grid-template-columns: 26px 36px minmax(180px, 1.5fr) 70px minmax(100px, 0.9fr) 78px 72px minmax(108px, 1fr) 52px 78px 48px 64px 92px;
+  grid-template-columns: 26px 36px minmax(160px, 1.4fr) 72px 78px minmax(108px, 1fr) 72px minmax(108px, 1fr) 52px 72px 48px 64px 84px;
   column-gap: 8px;
   align-items: center;
   min-width: 1180px;

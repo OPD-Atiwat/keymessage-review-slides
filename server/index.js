@@ -198,7 +198,7 @@ function sendFile(res, filePath) {
         "x-frame-options": "SAMEORIGIN",
         "content-security-policy":
           "default-src 'self'; img-src 'self'; style-src 'self'; font-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'",
-        "cache-control": ext === ".html" ? "no-store" : "public, max-age=300",
+        "cache-control": "no-store",
       });
       res.end(buf);
     })

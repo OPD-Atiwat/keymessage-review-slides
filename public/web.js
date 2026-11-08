@@ -1,10 +1,10 @@
-import { analysisItemId } from "/shared/analysis.js";
-import { rates } from "/shared/metrics.js";
-import { comparisonRows, pageOf } from "/shared/comparison.js";
-import { FROZEN_PERFORMANCE } from "/shared/cutoff.js";
-import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js";
-import { contentBadge } from "/shared/status-labels.js";
-import { TABLE_HEAD } from "/shared/labels.js";
+import { analysisItemId } from "/shared/analysis.js?v=20261108t98";
+import { rates } from "/shared/metrics.js?v=20261108t98";
+import { comparisonRows, pageOf } from "/shared/comparison.js?v=20261108t98";
+import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261108t98";
+import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261108t98";
+import { contentBadge } from "/shared/status-labels.js?v=20261108t98";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261108t98";
 
 const BOOKS = [
   ["Mind", "ถือไพ่เหนือกว่า"],
@@ -40,7 +40,7 @@ function mom(current, previous) {
   return changePct(current, previous).text;
 }
 function reportLabel(id) {
-  return { sep: "ก.ย. ทั้งเดือน", oct: "ต.ค. ทั้งเดือน", oct1_7: "1–7 ต.ค.", nov1_7: FROZEN_PERFORMANCE.novMtdLabel }[id] || id;
+  return { sep: "ก.ย. ทั้งเดือน", oct: "ต.ค. ทั้งเดือน", oct1_7: "1–7 ต.ค. 2569", nov1_7: "1–7 พ.ย. 2569" }[id] || id;
 }
 function opening(ad) {
   const body = (ad.body || "").trim();
@@ -149,8 +149,8 @@ function totalRow(totals, baseline, label) {
   const labelCell = el("span", "scan-total-label", `ยอดเล่ม · ผลลัพธ์ช่วง ${label}`);
   row.append(labelCell);
   row.append(metric("Spend", baht(totals.spend)));
-  row.append(metric("ROAS", baseline == null ? "—" : baseline.toFixed(2)));
   row.append(metric("Revenue", baht(totals.revenue)));
+  row.append(metric("ROAS", baseline == null ? "—" : baseline.toFixed(2)));
   row.append(metric("Messages", num(totals.chats)));
   row.append(metric("Cost per Message", rate.costPerMsg == null ? "—" : baht(rate.costPerMsg)));
   row.append(metric("CPM", rate.cpm == null ? "—" : baht(rate.cpm)));
@@ -169,8 +169,8 @@ function metric(label, value) {
 
 function columnHead(baseline) {
   const head = el("div", "scan-head scan-cols");
-  TABLE_HEAD.forEach((label, index) => {
-    const text = index === 4 && baseline != null ? `ROAS · เส้นเล่ม ${baseline.toFixed(2)}` : label;
+  TABLE_HEAD.forEach((label) => {
+    const text = label === "ROAS" && baseline != null ? `ROAS · เส้นเล่ม ${baseline.toFixed(2)}` : label;
     head.append(el("span", label === "Cost per Message" ? "wide" : "", text));
   });
   return head;
@@ -191,8 +191,8 @@ function scanRow(ad, index, baseline, bookRate, record, opts) {
   name.append(el("em", "", `${ad.creatorTag} · ${badge.text}`));
   row.append(name);
   row.append(volumeNum("spend", baht(ad.spend)));
-  row.append(roasCell(rate.roas, baseline));
   row.append(volumeNum("revenue", baht(ad.revenue)));
+  row.append(roasCell(rate.roas, baseline));
   row.append(volumeNum("chats", num(ad.chats)));
   row.append(coloredNum("costPerMsg", rate.costPerMsg == null ? "—" : baht(rate.costPerMsg), metricTone("costPerMsg", rate.costPerMsg, bookRate.costPerMsg)));
   row.append(coloredNum("cpm", rate.cpm == null ? "—" : baht(rate.cpm), metricTone("cpm", rate.cpm, bookRate.cpm)));

@@ -47,7 +47,7 @@ async function login(page, origin, password) {
     page.waitForNavigation({ waitUntil: "networkidle0" }),
     page.click("#login-form button"),
   ]);
-  await page.waitForSelector("#deck[data-hydrated='1']");
+  await page.waitForSelector("body[data-hydrated='1']");
 }
 
 test("book next page keeps working after the book tab replaces the view", async () => {
@@ -76,7 +76,6 @@ test("book next page keeps working after the book tab replaces the view", async 
     page.on("pageerror", (error) => errors.push(String(error && error.stack ? error.stack : error)));
     await login(page, origin, password);
     await page.evaluate(() => localStorage.setItem("km-unrelated", "keep-me"));
-    await page.click("#to-web");
     await page.waitForSelector("[data-book='Coworkers']");
     for (const book of ["Mind", "Coworkers", "SurvivalGuide", "Trap"]) {
       await page.click(`[data-book='${book}']`);
@@ -98,10 +97,8 @@ test("book next page keeps working after the book tab replaces the view", async 
     await page.waitForFunction(() => document.querySelector(".scan-row .pick-btn").textContent.includes("เลือกแล้ว"));
     await page.click("[data-view='overview']");
     await page.waitForSelector(".month-row");
-    await page.click("[data-view='present']");
-    await page.waitForSelector(".slide.active");
     await page.reload({ waitUntil: "networkidle0" });
-    await page.waitForSelector("#deck[data-hydrated='1']");
+    await page.waitForSelector("body[data-hydrated='1']");
     assert.equal(await page.evaluate(() => localStorage.getItem("km-unrelated")), "keep-me");
     assert.equal(await page.$eval("#boot-error", (node) => node.hidden), true);
     assert.deepEqual(errors, []);
