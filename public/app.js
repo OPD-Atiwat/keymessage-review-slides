@@ -294,7 +294,14 @@ function filteredAds() {
     if (!q) return true;
     return `${ad.adName} ${ad.body} ${ad.creatorTag} ${ad.adId}`.toLowerCase().includes(q);
   });
+  const groupScore = {};
+  for (const ad of rows) {
+    const value = sortValue(ad);
+    if (groupScore[ad.bodyKey] == null || (value != null && value > groupScore[ad.bodyKey])) groupScore[ad.bodyKey] = value;
+  }
   rows.sort((a, b) => {
+    const group = (groupScore[b.bodyKey] ?? -Infinity) - (groupScore[a.bodyKey] ?? -Infinity);
+    if (group) return group;
     const av = sortValue(a);
     const bv = sortValue(b);
     if (av == null && bv == null) return a.adName.localeCompare(b.adName, "th");
@@ -382,13 +389,29 @@ function renderAdPage(mount) {
   if (!results) return;
   results.replaceChildren();
   const rows = filteredAds();
-  const pageSize = 2;
+  const pageSize = window.matchMedia("(max-height: 620px)").matches ? 2 : 3;
   const pages = Math.max(1, Math.ceil(rows.length / pageSize));
   if (adState.page > pages - 1) adState.page = 0;
   const slice = rows.slice(adState.page * pageSize, adState.page * pageSize + pageSize);
+  const baseline = adState.book && deck.bookTotals[adState.period]
+    ? rates(deck.bookTotals[adState.period][adState.book]).roas
+    : null;
+  const title = document.querySelector("#s10-ads h1");
+  if (title) {
+    title.textContent = adState.bodyKey
+      ? openingFor(adState.bodyKey)
+      : `แอด${adState.book ? " " + bookMeta(adState.book).name : ""} ${periodLabel(adState.period)} เรียงตามรายได้ Meta`;
+  }
   const list = el("div", "adlist");
-  if (!slice.length) list.append(el("p", "fine", "ไม่พบแอดในช่วงกรองนี้"));
-  for (const ad of slice) list.append(adCard(ad));
+  if (!slice.length) list.append(el("p", "ref-foot", "ไม่พบแอดในช่วงกรองนี้"));
+  let lastKey = "";
+  slice.forEach((ad, index) => {
+    if (ad.bodyKey !== lastKey) {
+      list.append(el("p", "ref-group", openingFor(ad.bodyKey)));
+      lastKey = ad.bodyKey;
+    }
+    list.append(refAdRow(ad, adState.page * pageSize + index + 1, baseline));
+  });
   results.append(list);
   const pager = el("div", "pager");
   const prev = el("button", "ghost", "หน้าก่อน");
@@ -409,7 +432,60 @@ function renderAdPage(mount) {
   });
   pager.append(prev, el("span", "", `${adState.page + 1} / ${pages} · ${rows.length} แอด`), next);
   results.append(pager);
-  results.append(el("p", "fine", "สี่ช่วงอยู่แยกกัน 1–7 ต.ค. เป็นส่วนหนึ่งของเดือน ต.ค. · รายได้เป็นยอดที่ Meta นับให้แอด · ภาพนิ่งไม่ใช่วิดีโอที่เล่นได้"));
+  results.append(el("p", "ref-foot", "รายได้เป็น omni_purchase ของ Meta ไม่ใช่ BEP · ชื่อแอดคือ Ad Name จริง · ภาพนิ่งเล่นเป็นคลิปไม่ได้ · เปิดโพสต์ยังไม่ยืนยันเนื้อหา · ไม่ใช่คำสั่งงบ"));
+}
+
+function openingFor(bodyKey) {
+  const message = deck.messages.find((item) => item.bodyKey === bodyKey);
+  if (message) return message.opening;
+  const ad = deck.ads.find((item) => item.bodyKey === bodyKey && item.body);
+  return ad ? ad.body.split(/\s+\/\s+/)[0] : "";
+}
+
+function refAdRow(ad, index, baseline) {
+  const card = el("article", "ref-ad");
+  const top = el("div", "top");
+  top.append(el("span", "", String(index)));
+  if (ad.thumb) {
+    const img = document.createElement("img");
+    img.src = "/media/" + ad.thumb;
+    img.alt = ad.assetLabel;
+    top.append(img);
+  } else top.append(el("div", "thumb-ph", ad.assetKind === "namecard" ? "นามบัตร" : "ไม่มีภาพ"));
+  const text = el("div");
+  text.append(el("h3", "ad-name", ad.adName));
+  text.append(el("p", "ref-sub", `${ad.creatorTag} · ${confidenceText(ad.confidence)}`));
+  top.append(text);
+  const ig = safeUrl(ad.ig);
+  if (ig) {
+    const anchor = link(ig, "เปิด");
+    anchor.className = "ref-open";
+    top.append(anchor);
+  } else top.append(el("span", "ref-sub", ""));
+  card.append(top);
+  const rate = rates(ad);
+  const metrics = el("div", "metrics");
+  const cvr = rate.cvrProxy == null ? "—" : (rate.cvrProxy * 100).toFixed(1) + "%";
+  const cells = [
+    ["Spend", baht(ad.spend), ""],
+    ["รายได้ Meta", baht(ad.revenue), ""],
+    ["ROAS", null, ""],
+    ["แชท", num(ad.chats), ""],
+    ["บาท/แชท", rate.costPerMsg == null ? "—" : baht(rate.costPerMsg), ""],
+    ["CPM", rate.cpm == null ? "—" : baht(rate.cpm), ""],
+    ["ซื้อ", num(ad.purchases), ""],
+    ["ซื้อ÷แชท", cvr, rate.cvrProxy > 1 ? "เกิน 100% ได้ เพราะยอดซื้อไม่ได้ผูกกับแชท" : ""],
+    ["AOV", rate.aov == null ? "—" : baht(rate.aov), ""],
+  ];
+  for (const [label, value, title] of cells) {
+    const cell = el("div");
+    cell.append(el("span", "", label));
+    if (label === "ROAS") cell.append(roasBar(rate.roas, baseline));
+    else cell.append(metricCell(label, value, title).querySelector("b"));
+    metrics.append(cell);
+  }
+  card.append(metrics);
+  return card;
 }
 
 function select(label, options, value, onChange, testId) {
@@ -458,60 +534,75 @@ function renderAxis() {
   mount.append(note);
 }
 
+function barScale(baseline) {
+  return Math.max(3, baseline || 0, 0.01);
+}
+
+function roasBar(value, baseline) {
+  const wrap = el("div", "roas-cell");
+  const track = el("div", "roas-track");
+  const scale = barScale(baseline);
+  const width = value == null ? 0 : Math.max(0, Math.min(100, (value / scale) * 100));
+  const markAt = baseline == null ? null : Math.max(0, Math.min(100, (baseline / scale) * 100));
+  const fill = el("div", "roas-fill " + (value != null && baseline != null && value < baseline ? "under" : "over"));
+  fill.style.width = width + "%";
+  track.append(fill);
+  if (markAt != null) {
+    const mark = el("i", "roas-mark");
+    mark.style.left = markAt + "%";
+    track.append(mark);
+  }
+  const numEl = el("b", "roas-num " + (value != null && baseline != null && value < baseline ? "under" : "over"), value == null ? "—" : value.toFixed(2));
+  wrap.append(track, numEl);
+  return wrap;
+}
+
 function renderCoworkers() {
   const slide = document.getElementById("s06-coworkers");
+  const baseline = rates(deck.bookTotals.nov1_7.Coworkers).roas;
   const straight = deck.messages.find((message) => message.id === "cw-people-straight");
-  const doubled = deck.messages.find((message) => message.id === "cw-people-doubled");
-  const seen = deck.messages.find((message) => message.id === "cw-see-him");
-  const focus = straight.periods.nov1_7;
-  const rate = rates(focus);
-  const claim = `ข้อความเรื่องคนในที่ทำงาน ROAS ${roasText(focus)} จากแชท ${num(focus.chats)} ครั้ง`;
-  slide.querySelector("h1").textContent = claim;
-  const jump = document.querySelector('#jump option[value="5"]');
-  if (jump) jump.textContent = "6 " + claim;
+  slide.querySelector("h1").textContent = `ข้อความที่เปิดด้วยความทุกข์เรื่องคน ROAS ${roasText(straight.periods.nov1_7)}`;
   const mount = slide.querySelector('[data-mount="s06-coworkers"]');
   mount.replaceChildren();
-  const quote = document.createElement("blockquote");
-  quote.className = "hero-quote";
-  quote.textContent = straight.opening;
-  mount.append(quote);
-
-  const heroAds = deck.ads.filter((ad) => ad.period === "nov1_7" && ad.bodyKey === straight.bodyKey);
-  const hero = heroAds.find((ad) => ad.thumb) || heroAds[0];
-  const row = el("div", "hero-row");
-  if (hero && hero.thumb) {
-    const img = document.createElement("img");
-    img.src = "/media/" + hero.thumb;
-    img.alt = hero.assetLabel;
-    row.append(img);
-  } else {
-    row.append(el("div", "hero-fallback", "ไม่มีภาพที่ยืนยันได้"));
-  }
-  const copy = el("div");
-  copy.append(el("p", "hero-name", hero ? hero.adName : ""));
-  const nums = el("p", "hero-nums");
-  nums.append(document.createTextNode(roasText(focus) + " "));
-  nums.append(el("span", "", `ROAS · แชท ${num(focus.chats)} · ${rate.costPerMsg == null ? "—" : baht(rate.costPerMsg)}/แชท`));
-  copy.append(nums);
-  copy.append(el("p", "hero-sub", `Spend ${baht(focus.spend)} · รายได้ ${baht(focus.revenue)} · ซื้อ ${num(focus.purchases)} · ${volumeText(focus)}`));
-  const open = el("button", "quiet-link", "ตารางแอด 9 ตัวเลข");
-  open.type = "button";
-  open.addEventListener("click", () => openProof([straight, doubled], "nov1_7"));
-  copy.append(open);
-  row.append(copy);
-  mount.append(row);
-
-  const aside = el("div", "aside-quote");
-  const other = doubled.periods.nov1_7;
-  const otherRate = rates(other);
-  aside.append(el("p", "label", "อีกข้อความหนึ่ง เครื่องหมายคำพูดในแอดไม่ตรงกันทุกตัวอักษร จึงไม่รวมยอด"));
-  aside.append(el("p", "line", doubled.opening));
-  aside.append(el("p", "nums", `1–7 พ.ย. ROAS ${roasText(other)} · แชท ${num(other.chats)} · ${otherRate.costPerMsg == null ? "—" : baht(otherRate.costPerMsg)}/แชท · Spend ${baht(other.spend)}`));
-  const seenFocus = seen.periods.nov1_7;
-  aside.append(el("p", "nums", `ข้อความ «${seen.opening}» ในช่วงเดียวกัน ROAS ${roasText(seenFocus)} · แชท ${num(seenFocus.chats)} · ${rates(seenFocus).costPerMsg == null ? "—" : baht(rates(seenFocus).costPerMsg)}/แชท`));
-  mount.append(aside);
-  const foot = el("p", "footnote", "จากข้อความแอด ไม่ได้ตรวจบทพูดในวิดีโอ · ภาพนิ่งเล่นเป็นคลิปไม่ได้ · ป้ายครีเอเตอร์ไม่ใช่แกนของหน้านี้");
-  mount.append(foot);
+  const head = el("div", "ref-head");
+  ["#", "", "ข้อความแอด", "Spend", "ROAS", "แชท", "บาท/แชท"].forEach((label) => head.append(el("span", "", label)));
+  mount.append(head);
+  const messages = deck.messages
+    .filter((message) => message.book === "Coworkers" && message.periods.nov1_7 && message.periods.nov1_7.spend > 0)
+    .sort((a, b) => b.periods.nov1_7.revenue - a.periods.nov1_7.revenue)
+    .slice(0, 5);
+  messages.forEach((message, index) => {
+    const focus = message.periods.nov1_7;
+    const rate = rates(focus);
+    const sample = deck.ads.find((ad) => ad.period === "nov1_7" && ad.bodyKey === message.bodyKey && ad.thumb)
+      || deck.ads.find((ad) => ad.period === "nov1_7" && ad.bodyKey === message.bodyKey);
+    const row = el("div", "msg-row");
+    row.append(el("span", "", String(index + 1)));
+    if (sample && sample.thumb) {
+      const img = document.createElement("img");
+      img.src = "/media/" + sample.thumb;
+      img.alt = sample.assetLabel;
+      row.append(img);
+    } else row.append(el("div", "thumb-ph", "ไม่มีภาพ"));
+    const text = el("div");
+    text.append(el("div", "quote", message.opening));
+    text.append(el("p", "meta", `1–7 พ.ย. · ${message.adIds.length} แอด · ${volumeText(focus)}`));
+    row.append(text);
+    row.append(el("b", "", baht(focus.spend)));
+    row.append(roasBar(rate.roas, baseline));
+    row.append(el("b", "", num(focus.chats)));
+    row.append(el("b", "", rate.costPerMsg == null ? "—" : baht(rate.costPerMsg)));
+    row.addEventListener("click", () => {
+      adState.bodyKey = message.bodyKey;
+      adState.book = "Coworkers";
+      adState.period = "nov1_7";
+      adState.page = 0;
+      renderAds();
+      show(SLIDE_IDS.indexOf("s10-ads"), true);
+    });
+    mount.append(row);
+  });
+  mount.append(el("p", "ref-foot", "รายได้เป็น omni_purchase ของ Meta ไม่ใช่ BEP · ข้อความจากตัวแอด ยังไม่ได้ดูคลิป · เส้นคือ ROAS ทั้งเล่มจากผลรวม ไม่ใช่คำสั่งงบ"));
 }
 
 function openMethod() {
