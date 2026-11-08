@@ -792,6 +792,7 @@ select:focus-visible,
   position: relative;
 }
 .scan-thumb img { width: 72px; height: 72px; object-fit: contain; border-radius: 10px; display: block; background: #eef2f8; }
+.scan-preview-kind { position: absolute; left: 0; right: 0; bottom: 0; background: #1b2744; color: #fff; font-size: 11px; line-height: 1.2; padding: 2px; text-align: center; border-radius: 0 0 10px 10px; }
 .scan-ph { display: grid; place-items: center; color: #31456f; font-size: 11px; line-height: 1.25; text-align: center; padding: 4px; }
 .scan-still { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(27,39,68,.72); color: #fff; font-size: 8px; border-radius: 0 0 8px 8px; }
 .scan-name { min-width: 0; }

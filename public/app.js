@@ -1,10 +1,10 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261108t104";
-import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261108t104";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261108t104";
-import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261108t104";
-import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261108t104";
-import { contentBadge } from "/shared/status-labels.js?v=20261108t104";
-import { renderWeb } from "/web.js?v=20261108t104";
+import { analysisItemId } from "/shared/analysis.js?v=20261108t105";
+import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261108t105";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261108t105";
+import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261108t105";
+import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261108t105";
+import { contentBadge } from "/shared/status-labels.js?v=20261108t105";
+import { renderWeb } from "/web.js?v=20261108t105";
 
 const BOOKS = [
   { id: "Mind", name: "ถือไพ่เหนือกว่า", cls: "mind" },

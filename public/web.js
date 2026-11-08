@@ -1,13 +1,13 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261108t104";
-import { rates } from "/shared/metrics.js?v=20261108t104";
-import { comparisonRows } from "/shared/comparison.js?v=20261108t104";
-import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261108t104";
-import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261108t104";
-import { contentBadge, statusBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261108t104";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261108t104";
-import { OVERVIEW_METRICS, OVERVIEW_MONTHS, metricCell } from "/shared/history.js?v=20261108t104";
-import { previewFor } from "/shared/previews.js?v=20261108t104";
-import { orderMonthAds } from "/shared/reading-order.js?v=20261108t104";
+import { analysisItemId } from "/shared/analysis.js?v=20261108t105";
+import { rates } from "/shared/metrics.js?v=20261108t105";
+import { comparisonRows } from "/shared/comparison.js?v=20261108t105";
+import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261108t105";
+import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261108t105";
+import { contentBadge, statusBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261108t105";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261108t105";
+import { OVERVIEW_METRICS, OVERVIEW_MONTHS, metricCell } from "/shared/history.js?v=20261108t105";
+import { previewState } from "/shared/previews.js?v=20261108t105";
+import { orderMonthAds } from "/shared/reading-order.js?v=20261108t105";
 
 const BOOKS = [
   ["Mind", "ถือไพ่เหนือกว่า"],
@@ -399,8 +399,8 @@ function openDetail(ad, manifest) {
   const dialog = document.getElementById("zoom");
   const target = document.getElementById("zoom-img");
   const caption = document.getElementById("zoom-caption");
-  const frame = previewSource(ad, manifest);
-  if (frame) {
+  const frame = previewState(manifest, ad.adId);
+  if (frame.state === "ready") {
     target.hidden = false;
     target.src = frame.src;
     target.alt = frame.alt;
@@ -412,23 +412,23 @@ function openDetail(ad, manifest) {
   dialog.showModal();
 }
 
-function previewSource(ad, manifest) {
-  const ready = previewFor(manifest, ad.adId);
-  if (ready) return ready;
-  if (!ad.thumb) return null;
-  return { src: "/media/" + ad.thumb, alt: ad.assetLabel || ad.adName };
-}
-
 function thumb(ad, manifest) {
-  const frame = previewSource(ad, manifest);
-  if (!frame) return el("div", "scan-thumb scan-ph", "ยังไม่มีภาพจากวิดีโอ");
+  const frame = previewState(manifest, ad.adId);
+  if (frame.state !== "ready") {
+    const empty = el("div", "scan-thumb scan-ph", frame.label);
+    empty.title = frame.title;
+    return empty;
+  }
   const button = el("button", "scan-thumb");
   button.type = "button";
+  button.title = frame.title;
+  button.dataset.previewKind = frame.kind;
   const img = document.createElement("img");
   img.src = frame.src;
-  img.alt = frame.alt || ad.adName;
-  button.append(img);
-  button.title = frame.src.startsWith("/data/previews/") ? "ภาพจากวิดีโอ" : "ภาพนิ่งที่มีอยู่ ไม่ใช่เฟรมวิดีโอชุดใหม่";
+  img.alt = frame.alt;
+  img.width = frame.width || 72;
+  img.height = frame.height || 72;
+  button.append(img, el("span", "scan-preview-kind", frame.label));
   button.addEventListener("click", () => openDetail(ad, manifest));
   return button;
 }

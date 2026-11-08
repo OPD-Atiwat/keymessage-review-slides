@@ -187,6 +187,27 @@ test("November overview and Mind book stay on the selected period", async () => 
     await page.screenshot({ path: "/opt/cursor/artifacts/mind-nov-book-1024.png" });
     await page.screenshot({ path: "/workspace/docs/progress/mind-nov-book-1024.png" });
     await page.setViewport({ width: 1366, height: 768 });
+    for (const [book, file, images] of [["Trap", "trap-previews-1366", 10], ["Coworkers", "coworkers-previews-1366", 3], ["Mind", "mind-preview-1366", 1]]) {
+      await page.click(`[data-book='${book}']`);
+      await page.waitForSelector(".scan-row");
+      const kinds = await page.$$eval("[data-preview-kind]", (nodes) => nodes.map((node) => node.dataset.previewKind));
+      assert.equal(kinds.length, images);
+      if (book === "Trap") {
+        assert.ok(kinds.includes("video_cover"));
+        assert.ok(kinds.includes("ad_image"));
+      }
+      if (book === "Mind") assert.equal(await page.$$eval(".scan-row", (nodes) => nodes.length), 33);
+      const found = await page.evaluate(() => {
+        const image = document.querySelector(".scan-thumb img");
+        if (!image) return false;
+        image.scrollIntoView({ block: "center" });
+        return true;
+      });
+      assert.equal(found, true);
+      await page.screenshot({ path: `/opt/cursor/artifacts/${file}.png` });
+      await page.screenshot({ path: `/workspace/docs/progress/${file}.png` });
+    }
+    assert.match(await page.$eval(".scan-ph", (node) => node.textContent), /ยังไม่มีภาพเนื้อหาจากวิดีโอที่ยืนยันได้/);
 
     await page.click("[data-book='Coworkers']");
     await page.waitForFunction(() => document.querySelector("h2").textContent.includes("1–7 พ.ย. 2569"));
