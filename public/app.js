@@ -1,4 +1,5 @@
 import { analysisItemId } from "/shared/analysis.js";
+import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js";
 import { rates, sumTotals, volumeFlag } from "/shared/metrics.js";
 import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js";
 import { contentBadge } from "/shared/status-labels.js";
@@ -33,9 +34,19 @@ const slides = [...deckEl.querySelectorAll(".slide")];
 let deck = null;
 let index = 0;
 let userMoved = false;
-const adState = { period: "oct", book: "", tag: "", sort: "revenue", q: "", page: 0, bodyKey: "", contentId: "all", statusId: "all" };
+const adState = { period: "nov1_7", book: "", tag: "", sort: "revenue", q: "", page: 0, bodyKey: "", contentId: "all", statusId: "all" };
 let statusData = { ads_by_id: {}, summary: {} };
-let webView = { view: "overview", book: "Mind", pages: {} };
+let webView = { view: "present", book: "Mind", pages: {} };
+
+function setWebView(patch) {
+  webView = {
+    view: patch.view,
+    book: patch.book === undefined ? webView.book : patch.book,
+    pages: webView.pages,
+  };
+}
+const slidePages = {};
+const PRESENT_ROWS = 4;
 const analysisState = { items: {}, drafts: {} };
 const noteState = {
   configured: false,
@@ -111,6 +122,7 @@ function show(next, fromUser) {
   index = Math.max(0, Math.min(SLIDE_IDS.length - 1, next));
   slides.forEach((slide, i) => slide.classList.toggle("active", i === index));
   $("#count").textContent = `${index + 1} / ${SLIDE_IDS.length}`;
+  markNav();
   $("#prev").disabled = index === 0;
   $("#next").disabled = index === SLIDE_IDS.length - 1;
   const jump = $("#jump");
@@ -510,7 +522,9 @@ function roasBar(value, baseline) {
   const scale = barScale(baseline);
   const width = value == null ? 0 : Math.max(0, Math.min(100, (value / scale) * 100));
   const markAt = baseline == null ? null : Math.max(0, Math.min(100, (baseline / scale) * 100));
-  const fill = el("div", "roas-fill " + (value != null && baseline != null && value < baseline ? "under" : "over"));
+  const compared = metricTone("roas", value, baseline);
+  const tone = compared === "better" ? "over" : compared === "worse" ? "under" : "neutral";
+  const fill = el("div", "roas-fill " + tone);
   fill.style.width = width + "%";
   track.append(fill);
   if (markAt != null) {
@@ -518,7 +532,7 @@ function roasBar(value, baseline) {
     mark.style.left = markAt + "%";
     track.append(mark);
   }
-  const numEl = el("b", "roas-num " + (value != null && baseline != null && value < baseline ? "under" : "over"), value == null ? "—" : value.toFixed(2));
+  const numEl = el("b", "roas-num " + tone, value == null ? "—" : value.toFixed(2));
   wrap.append(track, numEl);
   return wrap;
 }
@@ -643,45 +657,6 @@ function openProof(messages, period) {
   document.getElementById("proof").showModal();
 }
 
-function renderQuestions() {
-  const mount = document.querySelector('[data-mount="s11-questions"]');
-  mount.replaceChildren();
-  const grid = el("div", "questions");
-  const items = [
-    ["กับดักสองข้อความเรื่องโรควิตก", "ช่วง 1–7 พ.ย. ข้อความ “ใกล้ตัวคุณกว่าที่คิด” ROAS 1.95 ส่วน “โรคที่คนไทยเป็นเยอะ” ROAS 0.52 ทั้งที่เป็นคนละข้อความ ไฟล์วิเคราะห์ถามว่าในคลิปพูดต่างกันตรงไหน หน้านี้ยังไม่ได้ดูคลิป"],
-    ["ออฟฟิศที่เปิดด้วยความทุกข์เรื่องคน", "สองข้อความเครื่องหมายคำพูดไม่ตรงกันทุกตัวอักษร ได้แชทถูกและ ROAS เกิน 2 ใน 1–7 พ.ย. คำถามคืออะไรทำให้คนทัก ไม่ใช่บทใหม่ที่แต่งขึ้น"],
-    ["Mind แชทถูกแต่ซื้อบาง", "“ลูกค้าไม่ซื้อ อาจไม่ใช่เพราะราคา” มีแชท 134 ครั้งและซื้อ 11 ครั้งใน 1–7 พ.ย. คำถามคือสิ่งที่คลิปสัญญาตรงกับที่แอดมินตอบหรือไม่"],
-    ["โปรและเล่มลายเซ็นของกับดัก", "บาทต่อแชทสูงและซื้อ÷แชทสูงในบางชุด ไฟล์วิเคราะห์ถามว่าคนซื้อผ่านช่องทางไหน ข้อมูลนี้ยังตอบไม่ได้"],
-  ];
-  for (const [title, copy] of items) {
-    const card = el("article", "point");
-    card.append(el("h2", "", title), el("p", "", copy));
-    grid.append(card);
-  }
-  mount.append(grid);
-  const quarantined = sumTotals(deck.excluded.quarantine.filter((row) => row.period === "nov1_7" && row.adId === "120255364063130260"));
-  mount.append(el("p", "fine", `ตัดสอง ad_id ออกทุกช่วง: 120255364063130260 และ 120255499941520260 เพราะชื่อเล่มกับข้อความไม่ตรงกัน ตัวแรกช่วง 1–7 พ.ย. Spend ${baht(quarantined.spend)} รายได้ ${baht(quarantined.revenue)} ถ้าเอากลับเข้ากับดัก ROAS ของเล่มจะเปลี่ยน Shopee และ OPDApp ไม่ได้อยู่ในตารางแชท`));
-}
-
-function renderSynthesis() {
-  const mount = document.querySelector('[data-mount="s12-synthesis"]');
-  mount.replaceChildren();
-  const grid = el("div", "questions");
-  const lines = [
-    ["ออฟฟิศคือเล่มที่ขยับขึ้น", `ROAS ทั้งเดือน 1.33 ใน ก.ย. เป็น 1.45 ใน ต.ค. และ 1.67 ใน 1–7 พ.ย. บาท/แชทของสัปดาห์นั้น ${baht(rates(deck.bookTotals.nov1_7.Coworkers).costPerMsg)} ข้อความที่เปิดด้วยความทุกข์เรื่องคนคือชุดที่แชทถูกที่สุดในสัปดาห์นี้`],
-    ["Mind ต่ำทั้งเล่ม", `ต.ค. ROAS ${roasText(deck.bookTotals.oct.Mind)} และ 1–7 พ.ย. ยัง ${roasText(deck.bookTotals.nov1_7.Mind)} ข้อความแชทถูกอย่าง “ลูกค้าไม่ซื้อ อาจไม่ใช่เพราะราคา” ยังตามด้วยยอดซื้อบาง`],
-    ["กับดักใหญ่ แต่ข้อความคนละแบบ", "ข้อความโรควิตก “ใกล้ตัว” ถือแชทได้ถูกใน 1–7 พ.ย. ส่วนอีกข้อความที่พ้องชื่อใช้เงินไปแล้ว ROAS 0.52 ในสัปดาห์นั้น ทั้งที่ทั้งเดือน ก.ย. และ ต.ค. ชุดหลังยังเกิน 1"],
-    ["Survival อย่าอ่านแค่สัปดาห์เล็ก", `ทั้งเดือน ต.ค. ROAS ${roasText(deck.bookTotals.oct.SurvivalGuide)} บางข้อความต้น พ.ย. ROAS สูงบน Spend หลักร้อยหรือหลักพัน ฐานนั้นยังเล็ก`],
-  ];
-  for (const [title, copy] of lines) {
-    const card = el("article", "point");
-    card.append(el("h2", "", title), el("p", "", copy));
-    grid.append(card);
-  }
-  mount.append(grid);
-  mount.append(el("p", "fine", "ใช้คุยข้อความแอดในรอบสแนปชอตนี้ ไม่ได้สรุปว่าข้อความเป็นสาเหตุ และไม่ได้สั่งให้ขยับงบ ป้ายครีเอเตอร์เป็นแค่ตัวกรองในรายการแอด"));
-}
-
 function renderOverview() {
   const mount = document.querySelector('[data-mount="s04-km-overview"]');
   mount.replaceChildren();
@@ -711,19 +686,310 @@ function renderOverview() {
   mount.append(el("p", "fine", "คลิกแถวเพื่อเปิดแอดของข้อความนั้น · จัดกลุ่มตามข้อความที่ตรงกันทั้งตัวอักษร · เกณฑ์ข้อมูลน้อยคือ Spend ต่ำกว่า ฿5,000 หรือซื้อไม่ถึง 10 ครั้ง เป็นตัวช่วยอ่าน ไม่ใช่กฎปิดแอด"));
 }
 
+function periodPhrase(id) {
+  if (id === "nov1_7") return "1–7 พ.ย. 2569";
+  if (id === "oct1_7") return "1–7 ต.ค. 2569";
+  if (id === "oct") return "ต.ค. 2569 ทั้งเดือน";
+  if (id === "sep") return "ก.ย. 2569 ทั้งเดือน";
+  return periodLabel(id);
+}
+
+function sameLengthPair(id) {
+  if (id === "nov1_7") return "oct1_7";
+  if (id === "oct1_7") return "nov1_7";
+  if (id === "oct") return "sep";
+  return null;
+}
+
+function periodAds(book) {
+  return deck.ads.filter((ad) => {
+    if (ad.period !== adState.period) return false;
+    if (book && ad.book !== book) return false;
+    if (adState.tag && ad.creatorTag !== adState.tag) return false;
+    const record = statusData.ads_by_id?.[ad.adId];
+    if (record?.excluded_from_book_totals) return false;
+    return true;
+  }).sort((a, b) => b.revenue - a.revenue || a.adName.localeCompare(b.adName, "th"));
+}
+
+function setSlideHeading(id, kicker, title) {
+  const slide = document.getElementById(id);
+  if (!slide) return;
+  const kick = slide.querySelector(".kicker");
+  if (kick) kick.textContent = kicker;
+  const pill = slide.querySelector(".ref-pill");
+  if (pill) pill.lastChild.textContent = kicker;
+  const h1 = slide.querySelector("h1");
+  if (h1) h1.textContent = title;
+}
+
+function metricHead() {
+  const head = el("div", "phead metrics");
+  ["#", "", "ข้อความแอด", "Spend", "ROAS", "รายได้ Meta", "แชท", "บาท/แชท", "CPM", "ซื้อ", "ซื้อ÷แชท", "AOV", ""].forEach((label) => {
+    head.append(el("span", "", label));
+  });
+  return head;
+}
+
+function presentPager(slideId, page, pages, total, render) {
+  const bar = el("div", "pager ppager");
+  const prev = el("button", "", "ก่อนหน้า");
+  prev.type = "button";
+  prev.disabled = page === 0;
+  prev.addEventListener("click", () => {
+    slidePages[slideId] = page - 1;
+    render();
+  });
+  const next = el("button", "", "ถัดไป");
+  next.type = "button";
+  next.disabled = page >= pages - 1;
+  next.setAttribute("aria-label", "หน้าถัดไปของรายการแอด");
+  next.addEventListener("click", () => {
+    slidePages[slideId] = page + 1;
+    render();
+  });
+  bar.append(prev, el("span", "", `${page + 1} / ${pages} · ${total} แอด`), next);
+  return bar;
+}
+
+function toneTitle(tone) {
+  return TONE_LABEL[tone] || TONE_LABEL.neutral;
+}
+
+function toneMark(tone) {
+  if (tone === "better") return "▲ ";
+  if (tone === "worse") return "▼ ";
+  return "";
+}
+
+function toneLegend() {
+  const row = el("p", "tone-legend");
+  row.append(el("span", "cell-better", "▲ " + TONE_LABEL.better));
+  row.append(el("span", "cell-worse", "▼ " + TONE_LABEL.worse));
+  row.append(el("span", "cell-neutral", "— " + TONE_LABEL.neutral));
+  return row;
+}
+
+function taggedCell(metric, text, tone) {
+  const node = el("b", "pnum cell-" + tone, toneMark(tone) + text);
+  node.dataset.metric = metric;
+  node.dataset.tone = tone;
+  node.title = toneTitle(tone);
+  return node;
+}
+
+function rateText(metric, value) {
+  if (value == null || !Number.isFinite(value)) return "—";
+  if (metric === "roas") return value.toFixed(2);
+  if (metric === "cvrProxy") return (value * 100).toFixed(1) + "%";
+  return baht(value);
+}
+
+function presentAdRow(ad, index, bookRate) {
+  const rate = rates(ad);
+  const base = bookRate || rates(deck.bookTotals[ad.period][ad.book]);
+  const row = el("article", "prow");
+  row.append(el("span", "prank", String(index)));
+  if (ad.thumb) {
+    const img = document.createElement("img");
+    img.src = "/media/" + ad.thumb;
+    img.alt = ad.assetLabel || ad.adName;
+    row.append(img);
+  } else row.append(el("div", "thumb-ph", "ไม่มีภาพ"));
+  const name = el("div", "pname");
+  const title = el("button", "ad-name", ad.adName);
+  title.type = "button";
+  title.title = ad.adName;
+  const record = statusData.ads_by_id?.[ad.adId];
+  const badge = contentBadge(record);
+  name.append(title);
+  name.append(el("em", "", `${ad.creatorTag} · ${badge.text}`));
+  row.append(name);
+  row.append(taggedCell("spend", baht(ad.spend), "volume"));
+  const roasTone = metricTone("roas", rate.roas, base.roas);
+  const roasWrap = el("div", "pcell cell-" + roasTone);
+  roasWrap.dataset.metric = "roas";
+  roasWrap.dataset.tone = roasTone;
+  roasWrap.title = toneTitle(roasTone);
+  if (roasTone === "better" || roasTone === "worse") roasWrap.append(el("span", "tone-mark", roasTone === "better" ? "▲" : "▼"));
+  roasWrap.append(roasBar(rate.roas, base.roas));
+  row.append(roasWrap);
+  row.append(taggedCell("revenue", baht(ad.revenue), "volume"));
+  row.append(taggedCell("chats", num(ad.chats), "volume"));
+  row.append(taggedCell("costPerMsg", rateText("costPerMsg", rate.costPerMsg), metricTone("costPerMsg", rate.costPerMsg, base.costPerMsg)));
+  row.append(taggedCell("cpm", rateText("cpm", rate.cpm), metricTone("cpm", rate.cpm, base.cpm)));
+  row.append(taggedCell("purchases", num(ad.purchases), "volume"));
+  row.append(taggedCell("cvrProxy", rateText("cvrProxy", rate.cvrProxy), metricTone("cvrProxy", rate.cvrProxy, base.cvrProxy)));
+  row.append(taggedCell("aov", rateText("aov", rate.aov), metricTone("aov", rate.aov, base.aov)));
+  const picked = Boolean(analysisState.items[analysisItemId(ad.period, ad.adId)]);
+  if (picked) row.classList.add("is-picked");
+  const pick = el("button", "pick-btn" + (picked ? " on" : ""), picked ? "เลือกแล้ว" : "เลือก");
+  pick.type = "button";
+  pick.dataset.pick = analysisItemId(ad.period, ad.adId);
+  pick.setAttribute("aria-pressed", picked ? "true" : "false");
+  pick.title = picked ? "เลือกไว้วิเคราะห์แล้ว ไม่ใช่สถานะการยิงแอด" : "เลือกข้อความนี้ไว้วิเคราะห์ต่อยอด ไม่ใช่สถานะการยิงแอด";
+  pick.addEventListener("click", (event) => {
+    event.stopPropagation();
+    togglePick(ad, ad.period);
+  });
+  row.append(pick);
+  return row;
+}
+
+function bookTotalRow(book, totals) {
+  const rate = rates(totals);
+  const row = el("article", "prow book-total");
+  row.append(el("span", "prank", ""));
+  row.append(el("div", "thumb-ph", ""));
+  const name = el("div", "pname");
+  name.append(el("strong", "ad-name", book.name));
+  name.append(el("em", "", "ฐานของเล่มนี้ · ไม่ได้จัดอันดับข้ามเล่ม"));
+  row.append(name);
+  row.append(taggedCell("spend", baht(totals.spend), "volume"));
+  const roasWrap = el("div", "pcell cell-baseline");
+  roasWrap.dataset.metric = "roas";
+  roasWrap.dataset.tone = "baseline";
+  roasWrap.title = toneTitle("baseline");
+  roasWrap.append(roasBar(rate.roas, null));
+  row.append(roasWrap);
+  row.append(taggedCell("revenue", baht(totals.revenue), "volume"));
+  row.append(taggedCell("chats", num(totals.chats), "volume"));
+  row.append(taggedCell("costPerMsg", rateText("costPerMsg", rate.costPerMsg), "baseline"));
+  row.append(taggedCell("cpm", rateText("cpm", rate.cpm), "baseline"));
+  row.append(taggedCell("purchases", num(totals.purchases), "volume"));
+  row.append(taggedCell("cvrProxy", rateText("cvrProxy", rate.cvrProxy), "baseline"));
+  row.append(taggedCell("aov", rateText("aov", rate.aov), "baseline"));
+  row.append(el("span", "", ""));
+  return row;
+}
+
+function renderPagedAds(slideId, book) {
+  const mount = document.querySelector(`[data-mount="${slideId}"]`);
+  if (!mount) return;
+  const rows = periodAds(book);
+  const pages = Math.max(1, Math.ceil(rows.length / PRESENT_ROWS));
+  const page = Math.max(0, Math.min(slidePages[slideId] || 0, pages - 1));
+  slidePages[slideId] = page;
+  const bookRate = book && deck.bookTotals[adState.period] ? rates(deck.bookTotals[adState.period][book]) : null;
+  mount.replaceChildren(metricHead(), toneLegend());
+  const slice = rows.slice(page * PRESENT_ROWS, page * PRESENT_ROWS + PRESENT_ROWS);
+  if (!slice.length) mount.append(el("p", "ref-foot", "ไม่มีแอดในช่วงนี้"));
+  slice.forEach((ad, index) => mount.append(presentAdRow(ad, page * PRESENT_ROWS + index + 1, bookRate)));
+  mount.append(presentPager(slideId, page, pages, rows.length, () => renderPagedAds(slideId, book)));
+}
+
+function renderBookTotals(slideId) {
+  const mount = document.querySelector(`[data-mount="${slideId}"]`);
+  mount.replaceChildren(metricHead(), toneLegend());
+  for (const book of BOOKS) mount.append(bookTotalRow(book, deck.bookTotals[adState.period][book.id]));
+  mount.append(el("p", "ref-foot", `${periodPhrase(adState.period)} · รายได้เป็น omni_purchase ของ Meta · ไม่รวมวันนี้ · ไม่ใช่คำสั่งงบ`));
+}
+
+function renderMatchedSlide() {
+  const mount = document.querySelector('[data-mount="s03-matched-week"]');
+  const pair = sameLengthPair(adState.period);
+  const h1 = document.querySelector("#s03-matched-week h1");
+  if (!pair) {
+    h1.textContent = "ไม่มีช่วงความยาวเท่ากันให้เทียบ";
+    mount.replaceChildren(el("p", "ref-foot", "ไม่เทียบทั้งเดือนกับ 1–7 วัน และไม่แสดง MoM ที่ฐานไม่เท่ากัน"));
+    return;
+  }
+  h1.textContent = `${periodPhrase(adState.period)} เทียบ ${periodPhrase(pair)}`;
+  mount.replaceChildren(metricHead());
+  for (const book of BOOKS) {
+    const current = deck.bookTotals[adState.period][book.id];
+    const previous = deck.bookTotals[pair][book.id];
+    const row = bookTotalRow(book, current);
+    const revenue = changePct(current.revenue, previous.revenue).text;
+    row.querySelector("em").textContent = `รายได้เทียบ ${periodPhrase(pair)} ${revenue} · ความยาวเท่ากัน`;
+    mount.append(row);
+  }
+  mount.append(el("p", "ref-foot", "เทียบเฉพาะช่วงที่ยาวเท่ากัน ต.ค. ทั้งเดือนไม่ถูกเอาไปชนกับ 1–7 พ.ย."));
+}
+
+function renderFullMonthReference() {
+  const mount = document.querySelector('[data-mount="s02-sep-oct"]');
+  document.querySelector("#s02-sep-oct h1").textContent = "อ้างอิงทั้งเดือน ก.ย. และ ต.ค.";
+  mount.replaceChildren(el("p", "ref-foot", "คนละความยาวกับ 1–7 พ.ย. 2569 ใช้ดูย้อนหลัง ไม่ใช่ข้อสรุปของสัปดาห์นี้"));
+  const head = el("div", "phead pref-head");
+  ["เล่ม", "ก.ย. ROAS", "ก.ย. รายได้", "ต.ค. ROAS", "ต.ค. รายได้", "MoM รายได้"].forEach((label) => head.append(el("span", "", label)));
+  mount.append(head);
+  for (const book of BOOKS) {
+    const sep = deck.bookTotals.sep[book.id];
+    const oct = deck.bookTotals.oct[book.id];
+    const row = el("article", "prow pref-row");
+    row.append(el("strong", "", book.name));
+    row.append(el("b", "", roasText(sep)));
+    row.append(el("b", "", baht(sep.revenue)));
+    row.append(el("b", "", roasText(oct)));
+    row.append(el("b", "", baht(oct.revenue)));
+    row.append(el("b", "", changePct(oct.revenue, sep.revenue).text));
+    mount.append(row);
+  }
+}
+
+function renderTopAds() {
+  const mount = document.querySelector('[data-mount="s04-km-overview"]');
+  document.querySelector("#s04-km-overview h1").textContent = `ข้อความแอดที่รายได้สูงใน ${periodPhrase(adState.period)}`;
+  const rows = periodAds("").slice(0, PRESENT_ROWS);
+  mount.replaceChildren(metricHead(), toneLegend());
+  rows.forEach((ad, index) => {
+    mount.append(presentAdRow(ad, index + 1, rates(deck.bookTotals[adState.period][ad.book])));
+  });
+  mount.append(el("p", "ref-foot", "หลายข้อความในหน้าเดียว ไม่ได้ยุบแอดที่ใช้ข้อความเดียวกัน และไม่ได้จัดอันดับครีเอเตอร์"));
+}
+
+function renderQuestions() {
+  const mount = document.querySelector('[data-mount="s11-questions"]');
+  mount.replaceChildren();
+  const lines = [
+    "ยังไม่ได้ดูคลิป ข้อความมาจากตัวแอด",
+    "ซื้อ÷แชทเกิน 100% ได้ เพราะยอดซื้อไม่ได้ผูกกับแชท",
+    "เดือน Content มาจากชื่อแอด ไม่ใช่ช่วงผลลัพธ์",
+  ];
+  for (const line of lines) mount.append(el("p", "talk", line));
+}
+
+function renderSynthesis() {
+  const mount = document.querySelector('[data-mount="s12-synthesis"]');
+  const period = adState.period;
+  const phrase = periodPhrase(period);
+  document.querySelector("#s12-synthesis h1").textContent = `รอบนี้ข้อความแอดของ ${phrase}`;
+  mount.replaceChildren();
+  for (const book of BOOKS) {
+    const totals = deck.bookTotals[period][book.id];
+    const rate = rates(totals);
+    mount.append(el("p", "talk", `${book.name} ROAS ${roasText(totals)} · Spend ${baht(totals.spend)} · รายได้ ${baht(totals.revenue)} · บาท/แชท ${rate.costPerMsg == null ? "—" : baht(rate.costPerMsg)}`));
+  }
+  mount.append(el("p", "ref-foot", "ตัวเลขนี้คือช่วงที่เลือกเท่านั้น ทั้งเดือนอยู่คนละสไลด์ และไม่ได้เอามาเทียบกับช่วง 7 วัน"));
+}
+
 function renderAll() {
-  renderAxis();
-  document.querySelector('[data-mount="s02-sep-oct"]').replaceChildren(bookTable("sep", "oct"));
-  document.querySelector('[data-mount="s03-matched-week"]').replaceChildren(bookTable("oct1_7", "nov1_7"));
-  renderOverview();
-  renderMessageGrid("s05-mind");
-  renderCoworkers();
-  renderMessageGrid("s07-survival");
-  renderMessageGrid("s08-trap");
-  renderMessageGrid("s09-same-copy");
-  renderAds();
+  const phrase = periodPhrase(adState.period);
+  setSlideHeading("s01-axis", phrase, `ข้อความแอด ${phrase}`);
+  renderBookTotals("s01-axis");
+  renderFullMonthReference();
+  renderMatchedSlide();
+  renderTopAds();
+  renderBookAdsHeading("s05-mind", "Mind");
+  renderBookAdsHeading("s06-coworkers", "Coworkers");
+  renderBookAdsHeading("s07-survival", "SurvivalGuide");
+  renderBookAdsHeading("s08-trap", "Trap");
+  setSlideHeading("s09-same-copy", phrase, "หนึ่งแอดต่อหนึ่งแถว แม้ข้อความจะซ้ำ");
+  renderPagedAds("s09-same-copy", "");
+  setSlideHeading("s10-ads", phrase, `แอด ${phrase} ตัวเลขครบเก้าช่อง`);
+  renderPagedAds("s10-ads", adState.book || "");
   renderQuestions();
   renderSynthesis();
+  const jump = document.querySelector('#jump option[value="0"]');
+  if (jump) jump.textContent = "1 " + document.querySelector("#s01-axis h1").textContent;
+}
+
+function renderBookAdsHeading(slideId, bookId) {
+  const book = bookMeta(bookId);
+  const totals = deck.bookTotals[adState.period][bookId];
+  setSlideHeading(slideId, `${book.name} · ${periodPhrase(adState.period)}`, `${book.name} ROAS ${roasText(totals)}`);
+  renderPagedAds(slideId, bookId);
 }
 
 function formatTime(iso) {
@@ -1016,6 +1282,7 @@ async function refreshSession() {
       await loadAnalysis();
     } else paintNotes();
     if (document.body.classList.contains("mode-web")) showWeb();
+    else renderAll();
   } catch {
     noteState.configured = false;
     noteState.reason = "ติดต่อเซิร์ฟเวอร์บันทึกไม่ได้";
@@ -1068,7 +1335,7 @@ function showWeb() {
     drafts: analysisState.drafts,
     legacyNotes: Object.entries(noteState.notes || {}).map(([id, note]) => ({ id, text: note.text || "" })),
     onBook: (id) => {
-      webView = { view: "book", book: id, pages: webView.pages };
+      setWebView({ view: "book", book: id });
       markNav();
       showWeb();
     },
@@ -1089,6 +1356,35 @@ function markNav() {
   document.querySelectorAll("#webnav button[data-view]").forEach((item) => {
     const on = item.dataset.view === webView.view && (item.dataset.view !== "book" || item.dataset.book === webView.book);
     item.classList.toggle("on", on);
+    item.setAttribute("aria-pressed", on ? "true" : "false");
+    if (on) item.setAttribute("aria-current", "page");
+    else item.removeAttribute("aria-current");
+  });
+  document.querySelectorAll("#toolbar .book-chip").forEach((chip) => {
+    const on = document.body.classList.contains("mode-present") && chip.dataset.slide === String(index);
+    chip.classList.toggle("on", on);
+    chip.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+  for (const id of ["content-month", "status-filter", "creator-filter", "sort-filter"]) {
+    const node = document.getElementById(id);
+    if (!node) continue;
+    const chosen = node.value && node.value !== "all";
+    node.classList.toggle("is-current", chosen);
+  }
+  for (const id of ["report-period", "present-period"]) {
+    const node = document.getElementById(id);
+    if (node) node.classList.add("is-current");
+  }
+}
+
+function paintPick(itemId, on) {
+  document.querySelectorAll(`[data-pick="${itemId}"]`).forEach((button) => {
+    button.textContent = on ? "เลือกแล้ว" : "เลือก";
+    button.classList.toggle("on", on);
+    button.setAttribute("aria-pressed", on ? "true" : "false");
+    button.title = on ? "เลือกไว้วิเคราะห์แล้ว ไม่ใช่สถานะการยิงแอด" : "เลือกข้อความนี้ไว้วิเคราะห์ต่อยอด ไม่ใช่สถานะการยิงแอด";
+    const row = button.closest(".prow, .scan-row, .analysis-card");
+    if (row) row.classList.toggle("is-picked", on);
   });
 }
 
@@ -1117,11 +1413,7 @@ async function togglePick(ad, period) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.item) return;
   analysisState.items[data.item.itemId] = data.item;
-  const button = document.querySelector(`[data-pick="${itemId}"]`);
-  if (button) {
-    button.textContent = "เลือกแล้ว";
-    button.classList.add("on");
-  }
+  paintPick(itemId, true);
 }
 
 async function saveAnalysis(itemId, text) {
@@ -1180,17 +1472,14 @@ async function removeAnalysis(itemId) {
   if (webView.view === "analysis") showWeb();
   else {
     const button = document.querySelector(`[data-pick="${itemId}"]`);
-    if (button) {
-      button.textContent = "เลือก";
-      button.classList.remove("on");
-    }
+    paintPick(itemId, false);
   }
 }
 
 function bindWeb() {
   document.querySelectorAll("#webnav button[data-view]").forEach((button) => {
     button.addEventListener("click", () => {
-      webView = { view: button.dataset.view, book: button.dataset.book || webView.book };
+      setWebView({ view: button.dataset.view, book: button.dataset.book || webView.book });
       markNav();
       document.body.classList.toggle("mode-present", webView.view === "present");
       document.body.classList.toggle("mode-web", webView.view !== "present");
@@ -1198,6 +1487,31 @@ function bindWeb() {
     });
   });
   document.getElementById("logout").addEventListener("click", logout);
+  document.getElementById("logout-nav").addEventListener("click", logout);
+  document.getElementById("to-web").addEventListener("click", () => {
+    setWebView({ view: "overview", book: webView.book });
+    document.body.classList.remove("mode-present");
+    document.body.classList.add("mode-web");
+    markNav();
+    showWeb();
+  });
+  document.getElementById("to-analysis").addEventListener("click", () => {
+    setWebView({ view: "analysis", book: webView.book });
+    document.body.classList.remove("mode-present");
+    document.body.classList.add("mode-web");
+    markNav();
+    showWeb();
+  });
+  document.querySelectorAll("#toolbar .book-chip").forEach((chip) => {
+    chip.addEventListener("click", () => show(Number(chip.dataset.slide), true));
+  });
+  document.getElementById("present-period").addEventListener("change", (event) => {
+    adState.period = event.target.value;
+    document.getElementById("report-period").value = event.target.value;
+    for (const key of Object.keys(slidePages)) delete slidePages[key];
+    syncAsof();
+    renderAll();
+  });
   document.getElementById("report-period").addEventListener("change", (event) => {
     adState.period = event.target.value;
     adState.page = 0;
@@ -1228,15 +1542,19 @@ function bindWeb() {
 }
 
 function refreshViews() {
-  const mount = document.querySelector('[data-mount="s10-ads"] .ad-results') ? document.querySelector('[data-mount="s10-ads"]') : null;
-  if (mount) renderAdPage(mount);
   if (document.body.classList.contains("mode-web")) showWeb();
+  else renderAll();
 }
 
 function syncAsof() {
-  const labels = { sep: "ก.ย. ทั้งเดือน", oct: "ต.ค. ทั้งเดือน", oct1_7: "1–7 ต.ค.", nov1_7: "1–7 พ.ย. (ยังไม่ครบเดือน)" };
+  const labels = { sep: "ก.ย. 2569 ทั้งเดือน", oct: "ต.ค. 2569 ทั้งเดือน", oct1_7: "1–7 ต.ค. 2569", nov1_7: "1–7 พ.ย. 2569" };
   const selected = document.getElementById("report-period").value;
-  document.getElementById("asof").textContent = `ผลลัพธ์ช่วง ${labels[selected]} · ข้อมูลถึง 7 พ.ย. 2569`;
+  const partial = selected === "nov1_7" || selected === "oct1_7" ? " · ไม่ใช่ทั้งเดือน" : "";
+  document.getElementById("asof").textContent = `ผลลัพธ์ช่วง ${labels[selected]}${partial} · ถึง 7 พ.ย. 2569 ไม่รวมวันนี้`;
+  const badge = document.getElementById("present-asof");
+  if (badge) badge.textContent = labels[selected] + partial;
+  const present = document.getElementById("present-period");
+  if (present && present.value !== selected) present.value = selected;
   document.getElementById("status-asof").hidden = document.getElementById("status-filter").value === "all";
 }
 

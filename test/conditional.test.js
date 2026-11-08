@@ -21,5 +21,14 @@ test("row color follows this book's period baseline, and skips metrics that cann
   assert.equal(metricTone("costPerMsg", 120, 83), "worse");
   assert.equal(metricTone("cpm", null, 99), "neutral");
   assert.equal(metricTone("roas", null, 1), "neutral");
-  assert.equal(metricTone("chats", 10, 100), "neutral");
+  assert.equal(metricTone("roas", 0, 1.2), "worse");
+  assert.equal(metricTone("roas", 2, null), "neutral");
+  assert.equal(metricTone("cvrProxy", 0.3, 0.1), "better");
+  assert.equal(metricTone("aov", 80, 120), "worse");
+  assert.equal(metricTone("spend", 90000, 100), "volume");
+  assert.equal(metricTone("revenue", 10, 90000), "volume");
+  assert.equal(metricTone("chats", 10, 100), "volume");
+  assert.equal(metricTone("purchases", 80, 1), "volume");
+  assert.equal(metricTone("roas", 1.004, 1), "neutral");
+  assert.equal(metricTone("costPerMsg", 54.4, 53.6), "neutral");
 });

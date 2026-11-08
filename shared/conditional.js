@@ -18,17 +18,36 @@ export function sameLengthBase(reportId) {
   return null;
 }
 
+/** Compared at the same precision the table prints, so a rounded tie is not a color. */
+export function roundMetric(metric, value) {
+  if (value == null || !Number.isFinite(Number(value))) return null;
+  const number = Number(value);
+  if (metric === "roas") return Number(number.toFixed(2));
+  if (metric === "cvrProxy") return Number((number * 100).toFixed(1));
+  if (metric === "costPerMsg" || metric === "cpm" || metric === "aov") return Math.round(number);
+  return number;
+}
+
+const HIGHER_BETTER = new Set(["roas", "cvrProxy", "aov"]);
+const LOWER_BETTER = new Set(["costPerMsg", "cpm"]);
+const VOLUME = new Set(["spend", "revenue", "chats", "purchases", "impressions"]);
+
+export const TONE_LABEL = {
+  better: "ดีกว่าค่าเฉลี่ยเล่ม",
+  worse: "ด้อยกว่าค่าเฉลี่ยเล่ม",
+  neutral: "ใกล้เคียง/ไม่มีฐานเปรียบเทียบ",
+  volume: "ปริมาณ ไม่ได้แปลว่าดีหรือด้อย",
+  baseline: "ฐานของเล่มนี้ ไม่ได้จัดอันดับข้ามเล่ม",
+};
+
 export function metricTone(metric, value, baseline) {
-  if (value == null || baseline == null || !Number.isFinite(value) || !Number.isFinite(baseline)) return "neutral";
-  if (metric === "roas") {
-    if (value > baseline) return "better";
-    if (value < baseline) return "worse";
-    return "neutral";
-  }
-  if (metric === "costPerMsg" || metric === "cpm") {
-    if (value < baseline) return "better";
-    if (value > baseline) return "worse";
-    return "neutral";
-  }
-  return "neutral";
+  if (VOLUME.has(metric)) return "volume";
+  if (!HIGHER_BETTER.has(metric) && !LOWER_BETTER.has(metric)) return "neutral";
+  const left = roundMetric(metric, value);
+  const right = roundMetric(metric, baseline);
+  if (left == null || right == null) return "neutral";
+  if (left === right) return "neutral";
+  const above = left > right;
+  if (HIGHER_BETTER.has(metric)) return above ? "better" : "worse";
+  return above ? "worse" : "better";
 }

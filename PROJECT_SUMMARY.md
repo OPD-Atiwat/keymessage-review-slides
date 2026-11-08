@@ -54,3 +54,4 @@ The deck and stills are static files under `public/`. Client IP for rate limits 
 - 2026-11-08: Key Message deck, yesterday cutoff, one-row comparison, conditional labels, inline notes.
 - 2026-11-08: Whole public app is session-gated. First-boot auth is one owner bootstrap password plus server-generated scrypt hash and session secret in this project's database. `PROJECT_SUMMARY.md` added for deploy. GitHub remains the working source; company GitLab `main` is the only deploy trigger.
 - 2026-11-08 12:10 Asia/Bangkok: owner replaced notes on every page with one วิเคราะห์ต่อยอด tab. Shortlist and analysis notes persist in this project's Postgres. Old slide notes are kept.
+- 2026-11-08 12:35: book-tab pagination crashed because replacing the view dropped `pages`. The page map is kept. Clicking next on ออฟฟิศ no longer throws. No database reset.

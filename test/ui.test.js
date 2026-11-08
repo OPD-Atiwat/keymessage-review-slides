@@ -100,72 +100,83 @@ test("slides, analysis shortlist, and ad controls at both viewports", async () =
     await bare.close();
 
     const page = await browser.newPage();
-    await page.setViewport({ width: 1366, height: 900 });
+    await page.setViewport({ width: 1366, height: 768 });
     await page.goto(origin, { waitUntil: "networkidle0" });
     await page.waitForSelector("#deck[data-hydrated='1']");
-    await page.waitForSelector(".month-row");
-    const books = await page.$$eval(".month-name", (nodes) => nodes.map((node) => node.textContent));
-    assert.deepEqual(books, ["ถือไพ่เหนือกว่า", "ออฟฟิศนี้เฮงซวย", "Survival Guide", "กับดักความรู้สึกผิด"]);
-    assert.match(await page.$eval("#asof", (node) => node.textContent), /7 พ\.ย\. 2569/);
-    const overviewFit = await page.evaluate(() => {
-      const names = [...document.querySelectorAll(".month-name")].map((node) => node.getBoundingClientRect());
-      return {
-        names: names.map((box) => box.bottom),
-        height: window.innerHeight,
-        notes: document.querySelectorAll(".slide-notes").length,
-      };
+    assert.equal(await page.$eval("body", (node) => node.classList.contains("mode-present")), true);
+    assert.equal(await page.$eval("#present-period", (node) => node.value), "nov1_7");
+    assert.equal(await page.$eval("#report-period", (node) => node.value), "nov1_7");
+    const opening = await page.$eval("#s01-axis h1", (node) => node.textContent);
+    assert.match(opening, /ข้อความแอด/);
+    assert.match(opening, /1–7 พ\.ย\. 2569/);
+    assert.equal(/ต\.ค\. ทั้งเดือน/.test(opening), false);
+    assert.equal(await page.$$eval("#s01-axis .book-total", (nodes) => nodes.length), 4);
+    assert.match(await page.$eval("#s01-axis .tone-legend", (node) => node.innerText), /ดีกว่าค่าเฉลี่ยเล่ม/);
+    assert.equal(await page.$$eval(".slide-notes", (nodes) => nodes.length), 0);
+    const stageRatio = await page.evaluate(() => {
+      const box = document.querySelector("#stage").getBoundingClientRect();
+      return box.width / box.height;
     });
-    assert.equal(overviewFit.names.length, 4);
-    assert.equal(overviewFit.notes, 0);
-    assert.ok(overviewFit.names.every((bottom) => bottom > 0 && bottom < overviewFit.height));
+    assert.ok(Math.abs(stageRatio - 16 / 9) < 0.05, "stage is 16:9");
     await page.screenshot({ path: "/workspace/docs/progress/overview-1366.png" });
     await page.screenshot({ path: "/opt/cursor/artifacts/overview-1366.png" });
-    await page.setViewport({ width: 1024, height: 900 });
+    await page.setViewport({ width: 1024, height: 554 });
     await page.screenshot({ path: "/workspace/docs/progress/overview-1024.png" });
     await page.screenshot({ path: "/opt/cursor/artifacts/overview-1024.png" });
 
-    await page.setViewport({ width: 1366, height: 900 });
-    await page.click("[data-book='Coworkers']");
-    await page.waitForSelector(".scan-row");
-    await page.evaluate(() => { document.querySelector("#web-main").scrollTop = 0; });
-    const bookFit = await page.evaluate(() => {
-      const rows = [...document.querySelectorAll(".scan-row")].slice(0, 3).map((node) => node.getBoundingClientRect());
+    await page.setViewport({ width: 1366, height: 768 });
+    await page.select("#jump", "5");
+    await page.waitForSelector("#s06-coworkers .prow .ad-name");
+    const bookTone = await page.evaluate(() => {
+      const rows = [...document.querySelectorAll("#s06-coworkers .prow")].slice(0, 3);
+      const boxes = rows.map((node) => node.getBoundingClientRect());
+      const judged = document.querySelectorAll("#s06-coworkers .cell-better, #s06-coworkers .cell-worse").length;
+      const spend = [...document.querySelectorAll("#s06-coworkers [data-metric='spend']")].map((node) => node.dataset.tone);
+      const content = document.querySelector("#s06-coworkers .content");
       return {
-        count: document.querySelectorAll(".scan-row").length,
-        heights: rows.map((box) => box.height),
-        tops: rows.map((box) => box.top),
-        height: window.innerHeight,
-        notes: document.querySelectorAll(".slide-notes").length,
+        count: document.querySelectorAll("#s06-coworkers .prow").length,
+        heights: boxes.map((box) => box.height),
+        judged,
+        spend,
+        overflow: content.scrollHeight - content.clientHeight,
       };
     });
-    assert.ok(bookFit.count >= 2);
-    assert.equal(bookFit.notes, 0);
-    assert.ok(bookFit.heights.every((height) => height > 20 && height < 88));
-    assert.ok(bookFit.tops.every((top) => top > 0 && top < bookFit.height));
+    assert.ok(bookTone.count >= 2);
+    assert.ok(bookTone.judged > 0);
+    assert.ok(bookTone.spend.every((tone) => tone === "volume"));
+    assert.ok(bookTone.heights.every((height) => height > 20 && height < 96));
+    assert.ok(bookTone.overflow < 2);
+    assert.equal(await page.$eval(".book-chip[data-slide='5']", (node) => node.getAttribute("aria-pressed")), "true");
+    assert.equal(await page.$eval(".book-chip[data-slide='4']", (node) => node.getAttribute("aria-pressed")), "false");
     await page.screenshot({ path: "/workspace/docs/progress/book-1366.png" });
     await page.screenshot({ path: "/opt/cursor/artifacts/book-1366.png" });
-    await page.setViewport({ width: 1024, height: 900 });
-    await page.evaluate(() => { document.querySelector("#web-main").scrollTop = 0; });
+    await page.setViewport({ width: 1024, height: 554 });
     await page.screenshot({ path: "/workspace/docs/progress/book-1024.png" });
     await page.screenshot({ path: "/opt/cursor/artifacts/book-1024.png" });
 
-    await page.setViewport({ width: 1366, height: 900 });
-    await page.click("[data-book='Coworkers']");
-    await page.waitForSelector(".scan-row .pick-btn");
-    const pickedName = await page.$eval(".scan-row .ad-name", (node) => node.textContent);
-    assert.equal(await page.$eval("#report-period", (node) => node.value), "oct");
-    await page.click(".scan-row .pick-btn");
-    await page.waitForFunction(() => document.querySelector(".scan-row .pick-btn").textContent === "เลือกแล้ว");
-    assert.equal(await page.$eval("#report-period", (node) => node.value), "oct");
-    assert.equal(await page.$eval("[data-book='Coworkers'].on", (node) => node.dataset.book), "Coworkers");
-    await page.click("[data-view='analysis']");
+    await page.setViewport({ width: 1366, height: 768 });
+    const pickedName = await page.$eval("#s06-coworkers .ad-name", (node) => node.textContent);
+    assert.equal(await page.$eval("#present-period", (node) => node.value), "nov1_7");
+    await page.click("#s06-coworkers .pick-btn");
+    await page.waitForFunction(() => document.querySelector("#s06-coworkers .pick-btn").getAttribute("aria-pressed") === "true");
+    assert.equal(await page.$eval("#s06-coworkers .prow.is-picked [data-metric='spend']", (node) => node.dataset.tone), "volume");
+    const stillJudged = await page.$eval("#s06-coworkers .prow.is-picked", (node) => node.querySelector(".cell-better, .cell-worse") != null);
+    assert.equal(stillJudged, true);
+    await page.screenshot({ path: "/workspace/docs/progress/selected-1366.png" });
+    await page.screenshot({ path: "/opt/cursor/artifacts/selected-1366.png" });
+    await page.setViewport({ width: 1024, height: 554 });
+    await page.screenshot({ path: "/workspace/docs/progress/selected-1024.png" });
+    await page.screenshot({ path: "/opt/cursor/artifacts/selected-1024.png" });
+    await page.setViewport({ width: 1366, height: 768 });
+    assert.equal(await page.$eval("#present-period", (node) => node.value), "nov1_7");
+    await page.click("#to-analysis");
     await page.waitForSelector(".analysis-card");
     assert.equal(await page.$(".slide-notes"), null);
     assert.match(await page.$eval(".analysis-lead", (node) => node.textContent), /เลือกเอง/);
     const cardText = await page.$eval(".analysis-card", (node) => node.innerText);
     assert.ok(cardText.includes(pickedName));
     assert.match(cardText, /ออฟฟิศนี้เฮงซวย/);
-    assert.match(cardText, /ต\.ค\. ทั้งเดือน/);
+    assert.match(cardText, /1–7 พ\.ย\./);
     assert.equal(cardText.includes("แนะนำให้เลือก"), false);
     await page.type(".analysis-note", marker);
     await page.waitForFunction(() => document.querySelector(".analysis-status").textContent.includes("บันทึกแล้ว"));
@@ -173,14 +184,13 @@ test("slides, analysis shortlist, and ad controls at both viewports", async () =
     await page.screenshot({ path: "/opt/cursor/artifacts/analysis-1366.png" });
     await page.reload({ waitUntil: "networkidle0" });
     await page.waitForSelector("#deck[data-hydrated='1']");
-    await page.click("[data-view='analysis']");
+    await page.click("#to-analysis");
     await page.waitForSelector(".analysis-note");
     assert.match(await page.$eval(".analysis-note", (node) => node.value), new RegExp(marker));
-    assert.equal(await page.$eval("#report-period", (node) => node.value), "oct");
+    assert.equal(await page.$eval("#report-period", (node) => node.value), "nov1_7");
 
     await page.setViewport({ width: 1024, height: 554 });
     await page.click("[data-view='present']");
-    assert.equal(new URL(page.url()).hash, "");
     assert.equal(new URL(page.url()).search, "");
     let box = await fit(page);
     assert.equal(box.noteCount, 0);
@@ -218,7 +228,7 @@ test("slides, analysis shortlist, and ad controls at both viewports", async () =
     await page.select("[data-filter='sort-filter']", "spend");
     const pager = await page.$eval(".pager", (node) => node.textContent);
     assert.match(pager, /แอด/);
-    await page.click("[aria-label='หน้าถัดไปของรายการแอด']");
+    await page.click(".slide.active [aria-label='หน้าถัดไปของรายการแอด']");
     await page.select("[data-filter='creator-filter']", "Central");
     await page.select("[data-filter='creator-filter']", "Central+Leef");
     await page.screenshot({ path: "/workspace/docs/progress/ads-1366.png" });
@@ -239,7 +249,7 @@ test("slides, analysis shortlist, and ad controls at both viewports", async () =
     ]);
     await fresh.waitForSelector("#deck[data-hydrated='1']");
     assert.equal(await fresh.$(".slide-notes"), null);
-    await fresh.click("[data-view='analysis']");
+    await fresh.click("#to-analysis");
     await fresh.waitForFunction((text) => {
       const area = document.querySelector(".analysis-note");
       return Boolean(area && area.value.includes(text));

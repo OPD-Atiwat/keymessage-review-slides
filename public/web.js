@@ -2,7 +2,7 @@ import { analysisItemId } from "/shared/analysis.js";
 import { rates } from "/shared/metrics.js";
 import { comparisonRows, pageOf } from "/shared/comparison.js";
 import { FROZEN_PERFORMANCE } from "/shared/cutoff.js";
-import { changePct, metricTone, sameLengthBase } from "/shared/conditional.js";
+import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js";
 import { contentBadge } from "/shared/status-labels.js";
 
 const BOOKS = [
@@ -186,18 +186,19 @@ function scanRow(ad, index, baseline, bookRate, record, opts) {
   const badge = contentBadge(record);
   name.append(el("em", "", `${ad.creatorTag} · ${badge.text}`));
   row.append(name);
-  row.append(el("span", "scan-spend", baht(ad.spend)));
+  row.append(volumeNum("spend", baht(ad.spend)));
   row.append(roasCell(rate.roas, baseline));
-  row.append(el("span", "scan-num", baht(ad.revenue)));
-  row.append(el("span", "scan-num", num(ad.chats)));
-  row.append(coloredNum(rate.costPerMsg == null ? "—" : baht(rate.costPerMsg), metricTone("costPerMsg", rate.costPerMsg, bookRate.costPerMsg)));
-  row.append(coloredNum(rate.cpm == null ? "—" : baht(rate.cpm), metricTone("cpm", rate.cpm, bookRate.cpm)));
-  row.append(el("span", "scan-num", num(ad.purchases)));
-  row.append(el("span", "scan-num", rate.cvrProxy == null ? "—" : (rate.cvrProxy * 100).toFixed(1) + "%"));
-  row.append(el("span", "scan-num", rate.aov == null ? "—" : baht(rate.aov)));
+  row.append(volumeNum("revenue", baht(ad.revenue)));
+  row.append(volumeNum("chats", num(ad.chats)));
+  row.append(coloredNum("costPerMsg", rate.costPerMsg == null ? "—" : baht(rate.costPerMsg), metricTone("costPerMsg", rate.costPerMsg, bookRate.costPerMsg)));
+  row.append(coloredNum("cpm", rate.cpm == null ? "—" : baht(rate.cpm), metricTone("cpm", rate.cpm, bookRate.cpm)));
+  row.append(volumeNum("purchases", num(ad.purchases)));
+  row.append(coloredNum("cvrProxy", rate.cvrProxy == null ? "—" : (rate.cvrProxy * 100).toFixed(1) + "%", metricTone("cvrProxy", rate.cvrProxy, bookRate.cvrProxy)));
+  row.append(coloredNum("aov", rate.aov == null ? "—" : baht(rate.aov), metricTone("aov", rate.aov, bookRate.aov)));
   const actions = el("span", "scan-actions");
   actions.append(sourceLink(ad), pickButton(ad, opts));
   row.append(actions);
+  if (opts.picks && opts.picks[analysisItemId(opts.reportId, ad.adId)]) row.classList.add("is-picked");
   return row;
 }
 
@@ -207,7 +208,8 @@ function pickButton(ad, opts) {
   const button = el("button", "pick-btn" + (picked ? " on" : ""), picked ? "เลือกแล้ว" : "เลือก");
   button.type = "button";
   button.dataset.pick = itemId;
-  button.title = "เลือกข้อความนี้ไว้หน้าวิเคราะห์ต่อยอด เป็นการเลือกเอง ไม่ใช่คำแนะนำ";
+  button.setAttribute("aria-pressed", picked ? "true" : "false");
+  button.title = picked ? "เลือกไว้วิเคราะห์แล้ว ไม่ใช่สถานะการยิงแอด" : "เลือกข้อความนี้ไว้วิเคราะห์ต่อยอด ไม่ใช่สถานะการยิงแอด";
   button.addEventListener("click", (event) => {
     event.stopPropagation();
     opts.onPick(ad, opts.reportId);
@@ -247,7 +249,7 @@ function renderAnalysis(root, opts) {
 
 function analysisCard(item, opts) {
   const ad = (opts.deck.ads || []).find((row) => row.adId === item.adId && row.period === item.reportPeriod);
-  const card = el("article", "analysis-card");
+  const card = el("article", "analysis-card is-picked");
   card.dataset.analysis = item.itemId;
   const media = ad ? thumb(ad) : el("div", "scan-thumb scan-ph", "ไม่มีภาพ");
   const body = el("div", "analysis-body");
@@ -306,14 +308,29 @@ function metricLine(ad) {
   return line;
 }
 
-function coloredNum(text, tone) {
-  return el("span", "scan-num" + (tone === "neutral" ? "" : " tone-" + tone), text);
+function toneMark(tone) {
+  if (tone === "better") return "▲ ";
+  if (tone === "worse") return "▼ ";
+  return "";
+}
+
+function coloredNum(metric, text, tone) {
+  const node = el("span", "scan-num cell-" + tone, toneMark(tone) + text);
+  node.dataset.metric = metric;
+  node.dataset.tone = tone;
+  node.title = TONE_LABEL[tone] || TONE_LABEL.neutral;
+  return node;
+}
+
+function volumeNum(metric, text) {
+  return coloredNum(metric, text, "volume");
 }
 
 function legend() {
-  const box = el("details", "legend");
-  box.append(el("summary", "", "สีเทียบเล่มนี้"));
-  box.append(el("p", "", "เทียบกับเส้นของเล่มนี้ในช่วงที่เลือกเท่านั้น ไม่ใช่เกณฑ์งบ ROAS สูงกว่าเส้นเป็นเขียว บาทต่อแชทและ CPM ต่ำกว่าเส้นเป็นเขียว ฝั่งตรงข้ามเป็นน้ำเงิน หารไม่ได้ขึ้น — และไม่มีสี"));
+  const box = el("p", "tone-legend");
+  box.append(el("span", "cell-better", "▲ " + TONE_LABEL.better));
+  box.append(el("span", "cell-worse", "▼ " + TONE_LABEL.worse));
+  box.append(el("span", "cell-neutral", "— " + TONE_LABEL.neutral));
   return box;
 }
 
@@ -378,7 +395,11 @@ function sourceLink(ad) {
 
 function roasCell(value, baseline) {
   const tone = metricTone("roas", value, baseline);
-  const cell = el("div", "scan-roas");
+  const cell = el("div", "scan-roas cell-" + tone);
+  cell.dataset.metric = "roas";
+  cell.dataset.tone = tone;
+  cell.title = TONE_LABEL[tone] || TONE_LABEL.neutral;
+  if (tone === "better" || tone === "worse") cell.append(el("span", "tone-mark", tone === "better" ? "▲" : "▼"));
   const track = el("div", "scan-track");
   const scale = Math.max(3, baseline || 0, value || 0, 0.01);
   const fill = el("i", tone === "worse" ? "under" : tone === "better" ? "over" : "neutral");
