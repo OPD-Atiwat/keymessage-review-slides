@@ -1,12 +1,13 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261108t106";
-import { rates } from "/shared/metrics.js?v=20261108t106";
-import { comparisonRows } from "/shared/comparison.js?v=20261108t106";
-import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261108t106";
-import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261108t106";
-import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261108t106";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261108t106";
-import { OVERVIEW_METRICS, OVERVIEW_MONTHS, metricCell } from "/shared/history.js?v=20261108t106";
-import { filterAds, sortAds } from "/shared/ad-query.js?v=20261108t106";
+import { analysisItemId } from "/shared/analysis.js?v=20261108t107";
+import { rates } from "/shared/metrics.js?v=20261108t107";
+import { comparisonRows } from "/shared/comparison.js?v=20261108t107";
+import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261108t107";
+import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261108t107";
+import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261108t107";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261108t107";
+import { OVERVIEW_METRICS, OVERVIEW_MONTHS, metricCell } from "/shared/history.js?v=20261108t107";
+import { filterAds, sortAds } from "/shared/ad-query.js?v=20261108t107";
+import { renderPeriodChart, renderScatter, renderTrendChart } from "/chart-view.js?v=20261108t107";
 
 const BOOKS = [
   ["Mind", "ถือไพ่เหนือกว่า"],
@@ -72,6 +73,8 @@ function renderOverview(root, opts) {
   method.append(el("summary", "", "วิธีนับ"));
   method.append(el("p", "history-help", [snap.channel, snap.method, snap.attribution, snap.revision, snap.optionalCrossRange].filter(Boolean).join(" · ")));
   root.append(method);
+  renderTrendChart(root, { ...opts, books: BOOKS, onChartMetric: opts.onChartMetric });
+  renderPeriodChart(root, { ...opts, books: BOOKS, periodLabel: reportLabel(opts.reportId) });
   for (const [id, name] of BOOKS) root.append(metricTable(opts.deck.bookTotals, id, name, opts));
   root.append(exclusionNote(opts.deck));
 }
@@ -192,6 +195,7 @@ function bookTable(name, book, opts) {
   const compare = compareLine(opts, book);
   if (compare) wrap.append(compare);
   wrap.append(totalRow(totals, baseline, reportLabel(opts.reportId)));
+  renderScatter(wrap, filtered.ok ? filtered.rows : all, baseline, opts);
   const scroller = el("div", "scan-scroll");
   scroller.append(columnHead(baseline, query, opts));
   const bookRate = rates(totals);

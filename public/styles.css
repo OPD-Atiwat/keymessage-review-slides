@@ -694,6 +694,34 @@ select:focus-visible,
 .month-board { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
 .history-help, .history-wait { margin: 0 0 6px; color: #60708f; font-size: 13px; max-width: 78em; }
 .history-method { margin: 0 0 10px; }
+.chart-block { margin: 0 0 14px; }
+.chart-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.chart-block h3 { margin: 0; color: #1b2744; font-size: 16px; }
+.chart-panel h4 { margin: 0 0 2px; color: #1b2744; font-size: 14px; }
+.chart-note { margin: 4px 0 8px; color: #31456f; font-size: 13px; }
+.chart-metric, .metric-filter select { min-height: 36px; }
+.trend-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.chart-panel { background: #fff; border-radius: 14px; padding: 8px 8px 4px; }
+.chart { width: 100%; height: auto; display: block; }
+.trend-line { fill: none; stroke: #1b2744; stroke-width: 2; }
+.trend-dot, .scatter-dot { fill: #1b2744; }
+.chart-tick, .chart-axis-label, .chart-value { fill: #1b2744; font-size: 11px; font-family: "IBM Plex Sans Thai", sans-serif; }
+.chart-axis { stroke: #c5cedd; stroke-width: 1; }
+.chart-base { stroke: #0b6b38; stroke-width: 1.5; stroke-dasharray: 4 3; }
+.period-row { display: grid; grid-template-columns: 148px 1fr auto; gap: 8px; align-items: center; margin: 0 0 6px; }
+.period-name, .period-value { color: #1b2744; font-size: 14px; }
+.period-track { display: block; height: 10px; background: #e7eef8; border-radius: 99px; }
+.period-bar { display: block; height: 10px; background: #1b2744; border-radius: 99px; }
+.scatter-host { position: relative; }
+.scatter-hit { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border: 0; border-radius: 99px; background: transparent; padding: 0; }
+.scatter-hit:focus-visible { outline: 3px solid #0b6b38; }
+.scatter-readout { margin: 4px 0 0; color: #1b2744; font-size: 14px; }
+.scan-row.is-located { outline: 2px solid #0b6b38; }
+.chart-data { margin-top: 4px; }
+.chart-data summary { cursor: pointer; color: #31456f; font-size: 13px; }
+@media (max-width: 900px) { .trend-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .trend-grid { grid-template-columns: 1fr; } .period-row { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .chart-block, .period-bar, .scatter-hit { transition: none; animation: none; } }
 .history-method summary { cursor: pointer; color: #31456f; font-size: 13px; }
 .metric-book { margin: 0 0 12px; }
 .metric-book h3 { margin: 10px 0 0; }

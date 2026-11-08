@@ -1,10 +1,10 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261108t106";
-import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261108t106";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261108t106";
-import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261108t106";
-import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261108t106";
-import { contentBadge } from "/shared/status-labels.js?v=20261108t106";
-import { renderWeb } from "/web.js?v=20261108t106";
+import { analysisItemId } from "/shared/analysis.js?v=20261108t107";
+import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261108t107";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261108t107";
+import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261108t107";
+import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261108t107";
+import { contentBadge } from "/shared/status-labels.js?v=20261108t107";
+import { renderWeb } from "/web.js?v=20261108t107";
 
 const BOOKS = [
   { id: "Mind", name: "ถือไพ่เหนือกว่า", cls: "mind" },
@@ -43,6 +43,7 @@ const adState = { period: "nov1_7", book: "", tag: "", sort: "revenue", q: "", p
 let statusData = { ads_by_id: {}, summary: {} };
 let previewManifest = { coverage: "pending", ads: {} };
 let tableQuery = { sortKey: "spend", sortDir: "desc", filterKey: "spend", min: "", max: "", appliedKey: "spend", appliedMin: "", appliedMax: "", error: "" };
+let chartMetric = "roas";
 
 function resetTableQuery() {
   tableQuery = { sortKey: "spend", sortDir: "desc", filterKey: "spend", min: "", max: "", appliedKey: "spend", appliedMin: "", appliedMax: "", error: "" };
@@ -1380,6 +1381,11 @@ function showWeb() {
     pages: webView.pages,
     previews: previewManifest,
     query: tableQuery,
+    chartMetric,
+    onChartMetric: (key) => {
+      chartMetric = key;
+      showWeb();
+    },
     onQuery: (next) => {
       tableQuery = next;
       showWeb();

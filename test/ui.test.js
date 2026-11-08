@@ -124,11 +124,19 @@ test("November overview and Mind book stay on the selected period", async () => 
     assert.equal(shape.novTitle.includes("ทั้งเดือน"), false);
     assert.equal(shape.mixed, false);
     assert.equal(await page.$(".history-cell"), null);
+    assert.equal(await page.$$eval(".trend-panel, .chart-panel", (nodes) => nodes.length), 4);
+    const ticks = await page.$$eval(".trend-chart .chart-tick", (nodes) => nodes.map((node) => node.textContent));
+    assert.ok(ticks.includes("พ.ค."));
+    assert.equal(ticks.includes("พ.ย."), false);
+    assert.equal(await page.$$eval(".period-row", (nodes) => nodes.length), 4);
     await page.screenshot({ path: "/opt/cursor/artifacts/overview-nov-1366.png" });
     await page.screenshot({ path: "/workspace/docs/progress/overview-nov-1366.png" });
     await page.setViewport({ width: 1024, height: 768 });
     await page.screenshot({ path: "/opt/cursor/artifacts/overview-nov-1024.png" });
     await page.screenshot({ path: "/workspace/docs/progress/overview-nov-1024.png" });
+    await page.setViewport({ width: 390, height: 780 });
+    await page.screenshot({ path: "/opt/cursor/artifacts/overview-narrow.png" });
+    await page.screenshot({ path: "/workspace/docs/progress/overview-narrow.png" });
     await page.setViewport({ width: 1366, height: 768 });
 
     await page.click("[data-book='Mind']");
@@ -174,6 +182,11 @@ test("November overview and Mind book stay on the selected period", async () => 
     assert.equal(await page.$eval("#content-month", (node) => node.value), "all");
     assert.equal(await page.$(".scan-row .scan-status"), null);
     assert.equal(await page.$(".scan-row img"), null);
+    assert.match(await page.$eval(".scatter-block .chart-note", (node) => node.textContent), /ไม่แปลว่ากำไร/);
+    const picksBefore = await page.$$eval(".pick-btn.on", (nodes) => nodes.length);
+    await page.click(".scatter-hit");
+    await page.waitForSelector(".scan-row.is-located");
+    assert.equal(await page.$$eval(".pick-btn.on", (nodes) => nodes.length), picksBefore);
     assert.equal(await page.$eval("[data-sort='spend']", (node) => node.getAttribute("aria-sort")), "descending");
     const nameStyle = await page.$eval(".scan-row .ad-name", (node) => {
       const style = getComputedStyle(node);
