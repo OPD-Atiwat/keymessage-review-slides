@@ -429,21 +429,161 @@ function select(label, options, value, onChange, testId) {
 }
 
 function renderAxis() {
-  const mount = document.querySelector('[data-mount="s01-axis"]');
+  const slide = document.getElementById("s01-axis");
+  const octOffice = deck.bookTotals.oct.Coworkers;
+  const octMind = deck.bookTotals.oct.Mind;
+  const claim = `ข้อความแอดเดือน ต.ค. ออฟฟิศ ROAS ${roasText(octOffice)} Mind เหลือ ${roasText(octMind)}`;
+  slide.querySelector("h1").textContent = claim;
+  const jump = document.querySelector('#jump option[value="0"]');
+  if (jump) jump.textContent = "1 " + claim;
+  const mount = slide.querySelector('[data-mount="s01-axis"]');
   mount.replaceChildren();
-  const grid = el("div", "books");
+  const list = document.createElement("ol");
+  list.className = "bookline";
   for (const book of BOOKS) {
     const oct = deck.bookTotals.oct[book.id];
     const nov = deck.bookTotals.nov1_7[book.id];
-    const card = el("article", "book " + book.cls);
-    card.append(el("h2", "", book.name));
-    card.append(el("p", "metric-line", `ต.ค. ROAS ${roasText(oct)} · 1–7 พ.ย. ROAS ${roasText(nov)} · บาท/แชท ${rates(nov).costPerMsg == null ? "—" : baht(rates(nov).costPerMsg)}`));
-    grid.append(card);
+    const item = document.createElement("li");
+    const score = el("span", "roas " + (rates(oct).roas >= 1 ? "over" : "under"), roasText(oct));
+    item.append(el("span", "name", book.name), score, el("span", "when", `ต.ค. · 1–7 พ.ย. ${roasText(nov)}`));
+    list.append(item);
   }
-  mount.append(grid);
-  const chips = el("div", "chips");
-  ["รายได้คือ omni_purchase ของ Meta ไม่ใช่ BEP หรือ Organic", "ซื้อ÷แชทเกิน 100% ได้ เพราะไม่ได้จับคู่แชทกับออเดอร์", "ข้อความมาจากตัวแอด ยังไม่ได้ดูคลิป", "ไม่มีเกณฑ์ 115% หรือ 70% และไม่มีคำสั่งงบ", "สแนปชอต 8 พ.ย. 2569 ไม่รวมยอดวันที่ 8 ที่ยังไม่จบวัน"].forEach((text) => chips.append(el("span", "chip", text)));
-  mount.append(chips);
+  mount.append(list);
+  const note = el("p", "footnote");
+  note.append(document.createTextNode("รายได้เป็น omni_purchase ของ Meta ไม่ใช่ BEP · ข้อความจากตัวแอด ยังไม่ได้ดูคลิป · ไม่ใช่คำสั่งงบ · สแนปชอต 8 พ.ย. 2569 ไม่รวมวันที่ 8"));
+  const source = el("button", "", "ที่มา");
+  source.type = "button";
+  source.addEventListener("click", openMethod);
+  note.append(source);
+  mount.append(note);
+}
+
+function renderCoworkers() {
+  const slide = document.getElementById("s06-coworkers");
+  const straight = deck.messages.find((message) => message.id === "cw-people-straight");
+  const doubled = deck.messages.find((message) => message.id === "cw-people-doubled");
+  const seen = deck.messages.find((message) => message.id === "cw-see-him");
+  const focus = straight.periods.nov1_7;
+  const rate = rates(focus);
+  const claim = `ข้อความเรื่องคนในที่ทำงาน ROAS ${roasText(focus)} จากแชท ${num(focus.chats)} ครั้ง`;
+  slide.querySelector("h1").textContent = claim;
+  const jump = document.querySelector('#jump option[value="5"]');
+  if (jump) jump.textContent = "6 " + claim;
+  const mount = slide.querySelector('[data-mount="s06-coworkers"]');
+  mount.replaceChildren();
+  const quote = document.createElement("blockquote");
+  quote.className = "hero-quote";
+  quote.textContent = straight.opening;
+  mount.append(quote);
+
+  const heroAds = deck.ads.filter((ad) => ad.period === "nov1_7" && ad.bodyKey === straight.bodyKey);
+  const hero = heroAds.find((ad) => ad.thumb) || heroAds[0];
+  const row = el("div", "hero-row");
+  if (hero && hero.thumb) {
+    const img = document.createElement("img");
+    img.src = "/media/" + hero.thumb;
+    img.alt = hero.assetLabel;
+    row.append(img);
+  } else {
+    row.append(el("div", "hero-fallback", "ไม่มีภาพที่ยืนยันได้"));
+  }
+  const copy = el("div");
+  copy.append(el("p", "hero-name", hero ? hero.adName : ""));
+  const nums = el("p", "hero-nums");
+  nums.append(document.createTextNode(roasText(focus) + " "));
+  nums.append(el("span", "", `ROAS · แชท ${num(focus.chats)} · ${rate.costPerMsg == null ? "—" : baht(rate.costPerMsg)}/แชท`));
+  copy.append(nums);
+  copy.append(el("p", "hero-sub", `Spend ${baht(focus.spend)} · รายได้ ${baht(focus.revenue)} · ซื้อ ${num(focus.purchases)} · ${volumeText(focus)}`));
+  const open = el("button", "quiet-link", "ตารางแอด 9 ตัวเลข");
+  open.type = "button";
+  open.addEventListener("click", () => openProof([straight, doubled], "nov1_7"));
+  copy.append(open);
+  row.append(copy);
+  mount.append(row);
+
+  const aside = el("div", "aside-quote");
+  const other = doubled.periods.nov1_7;
+  const otherRate = rates(other);
+  aside.append(el("p", "label", "อีกข้อความหนึ่ง เครื่องหมายคำพูดในแอดไม่ตรงกันทุกตัวอักษร จึงไม่รวมยอด"));
+  aside.append(el("p", "line", doubled.opening));
+  aside.append(el("p", "nums", `1–7 พ.ย. ROAS ${roasText(other)} · แชท ${num(other.chats)} · ${otherRate.costPerMsg == null ? "—" : baht(otherRate.costPerMsg)}/แชท · Spend ${baht(other.spend)}`));
+  const seenFocus = seen.periods.nov1_7;
+  aside.append(el("p", "nums", `ข้อความ «${seen.opening}» ในช่วงเดียวกัน ROAS ${roasText(seenFocus)} · แชท ${num(seenFocus.chats)} · ${rates(seenFocus).costPerMsg == null ? "—" : baht(rates(seenFocus).costPerMsg)}/แชท`));
+  mount.append(aside);
+  const foot = el("p", "footnote", "จากข้อความแอด ไม่ได้ตรวจบทพูดในวิดีโอ · ภาพนิ่งเล่นเป็นคลิปไม่ได้ · ป้ายครีเอเตอร์ไม่ใช่แกนของหน้านี้");
+  mount.append(foot);
+}
+
+function openMethod() {
+  const body = document.getElementById("method-body");
+  body.replaceChildren();
+  const lines = [
+    "ข้อมูลแคมเปญแชทที่ดึง 8 พ.ย. 2569 เวลาไทย ไม่รวมยอดวันที่ 8 ที่ยังไม่จบวัน",
+    "รายได้คือ omni_purchase ที่ Meta นับให้แอด ไม่ใช่ยอดขาย BEP และไม่ใช่ยอด Organic",
+    "ROAS และบาทต่อแชทหารจากผลรวมของช่วง ไม่ใช่ค่าเฉลี่ยของ ROAS รายแอด",
+    "ซื้อ÷แชทเป็นตัวเลขคร่าว ๆ เกิน 100% ได้ เพราะยอดซื้อไม่ได้ผูกกับคนที่ทัก",
+    "ข้อความมาจากตัวแอด ยังไม่ได้ดูคลิป และไม่ได้สั่งให้เพิ่มหรือปิดงบ",
+    "1–7 ต.ค. เป็นส่วนหนึ่งของเดือน ต.ค. ห้ามนำไปบวกกับทั้งเดือน",
+    "ตัด ad 120255364063130260 และ 120255499941520260 เพราะชื่อเล่มกับข้อความไม่ตรงกัน",
+  ];
+  for (const line of lines) body.append(el("p", "", line));
+  document.getElementById("method").showModal();
+}
+
+function openProof(messages, period) {
+  const title = document.getElementById("proof-title");
+  title.textContent = "แอดช่วง " + periodLabel(period);
+  const body = document.getElementById("proof-body");
+  body.replaceChildren();
+  for (const message of messages) {
+    body.append(el("p", "", message.opening));
+    const table = document.createElement("table");
+    table.className = "proof-table";
+    const head = document.createElement("tr");
+    ["", "Ad Name", "ป้าย", "Spend", "รายได้ Meta", "ROAS", "แชท", "บาท/แชท", "CPM", "ซื้อ", "ซื้อ÷แชท", "AOV"].forEach((label) => head.append(el("th", "", label)));
+    table.append(head);
+    const rows = deck.ads.filter((ad) => ad.period === period && ad.bodyKey === message.bodyKey);
+    for (const ad of rows) {
+      const rate = rates(ad);
+      const tr = document.createElement("tr");
+      const thumb = document.createElement("td");
+      if (ad.thumb) {
+        const img = document.createElement("img");
+        img.src = "/media/" + ad.thumb;
+        img.alt = ad.assetLabel;
+        thumb.append(img);
+      } else thumb.textContent = ad.assetKind === "namecard" ? "นามบัตร" : "ไม่มีภาพ";
+      tr.append(thumb);
+      tr.append(el("td", "name", ad.adName));
+      tr.append(el("td", "", ad.creatorTag));
+      const cvr = rate.cvrProxy == null ? "—" : (rate.cvrProxy * 100).toFixed(1) + "%";
+      [
+        baht(ad.spend),
+        baht(ad.revenue),
+        rate.roas == null ? "—" : rate.roas.toFixed(2),
+        num(ad.chats),
+        rate.costPerMsg == null ? "—" : baht(rate.costPerMsg),
+        rate.cpm == null ? "—" : baht(rate.cpm),
+        num(ad.purchases),
+        cvr,
+        rate.aov == null ? "—" : baht(rate.aov),
+      ].forEach((value) => tr.append(el("td", "", value)));
+      table.append(tr);
+      const links = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 12;
+      const ig = safeUrl(ad.ig);
+      const fb = safeUrl(ad.fb);
+      const adsUrl = safeUrl(ad.adsManager);
+      if (ig) cell.append(link(ig, "เปิดโพสต์ IG (ยังไม่ยืนยันเนื้อหา) "));
+      if (fb) cell.append(link(fb, "Facebook (ต้องล็อกอิน) "));
+      if (adsUrl) cell.append(link(adsUrl, "Ads Manager (ต้องล็อกอิน)"));
+      links.append(cell);
+      table.append(links);
+    }
+    body.append(table);
+  }
+  document.getElementById("proof").showModal();
 }
 
 function renderQuestions() {
@@ -520,7 +660,7 @@ function renderAll() {
   document.querySelector('[data-mount="s03-matched-week"]').replaceChildren(bookTable("oct1_7", "nov1_7"));
   renderOverview();
   renderMessageGrid("s05-mind");
-  renderMessageGrid("s06-coworkers");
+  renderCoworkers();
   renderMessageGrid("s07-survival");
   renderMessageGrid("s08-trap");
   renderMessageGrid("s09-same-copy");

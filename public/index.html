@@ -11,22 +11,13 @@
   <div id="viewport">
     <div id="stage">
       <div id="deck">
-    <section class="slide" id="s01-axis" data-id="s01-axis">
+    <section class="slide poster" id="s01-axis" data-id="s01-axis">
       <header>
-        <p class="kicker">วิธีอ่าน</p>
-        <h1>ข้อความแอดคือแกนของสำรับนี้ — ยังไม่ได้ดูคลิป</h1>
+        <p class="kicker">ก.ย.–ต้น พ.ย. 2569 · แคมเปญแชท</p>
+        <p class="question">เล่มไหนที่รายได้ Meta ยังตาม Spend ในเดือนตุลาคม</p>
+        <h1>ข้อความแอดเดือน ต.ค. ออฟฟิศ ROAS 1.45 Mind เหลือ 0.69</h1>
       </header>
-      <div class="content" data-mount="s01-axis"><div class="books">
-            <article class="book mind"><h2>ถือไพ่เหนือกว่า</h2><p class="metric-line">ต.ค. ROAS 0.69 · 1–7 พ.ย. ยังต่ำกว่า 1</p></article>
-            <article class="book office"><h2>ออฟฟิศนี้เฮงซวย</h2><p class="metric-line">ต.ค. ROAS 1.45 · 1–7 พ.ย. ROAS 1.67</p></article>
-            <article class="book survival"><h2>Survival Guide</h2><p class="metric-line">ต.ค. ROAS 0.91</p></article>
-            <article class="book trap"><h2>กับดักความรู้สึกผิด</h2><p class="metric-line">ต.ค. ROAS 1.24 · ยังเป็นเล่มที่ Spend สูง</p></article>
-          </div>
-          <div class="chips">
-            <span class="chip">รายได้คือ omni_purchase ของ Meta ไม่ใช่ BEP หรือ Organic</span>
-            <span class="chip">ยังไม่ได้ดูคลิป ข้อความมาจากตัวแอด</span>
-            <span class="chip">ไม่มีคำสั่งงบจากสแนปชอตนี้</span>
-          </div></div>
+      <div class="content" data-mount="s01-axis"></div>
       <section class="slide-notes" data-notes-for="s01-axis" aria-label="บันทึกบนสไลด์">
         <div class="notes-top">
           <strong>บันทึกบนสไลด์</strong>
@@ -101,10 +92,11 @@
         </div>
       </section>
     </section>
-    <section class="slide" id="s06-coworkers" data-id="s06-coworkers">
+    <section class="slide essay" id="s06-coworkers" data-id="s06-coworkers">
       <header>
-        <p class="kicker">ออฟฟิศ</p>
-        <h1>ออฟฟิศ: ข้อความที่เปิดด้วยความทุกข์เรื่องคน ได้แชทถูก</h1>
+        <p class="kicker">ออฟฟิศ · 1–7 พ.ย.</p>
+        <p class="question">ข้อความที่เปิดด้วยความทุกข์เรื่องคน แชทถูกกว่าข้อความอื่นของเล่มหรือไม่</p>
+        <h1>ข้อความเรื่องคนในที่ทำงาน แชทถูกและ ROAS เกิน 2</h1>
       </header>
       <div class="content" data-mount="s06-coworkers"></div>
       <section class="slide-notes" data-notes-for="s06-coworkers" aria-label="บันทึกบนสไลด์">
@@ -238,6 +230,20 @@
     </label>
     <button type="button" id="full">เต็มจอ</button>
   </footer>
+  <dialog id="method">
+    <form method="dialog">
+      <h2>ที่มาของตัวเลข</h2>
+      <div id="method-body"></div>
+      <button type="submit" value="cancel">ปิด</button>
+    </form>
+  </dialog>
+  <dialog id="proof">
+    <form method="dialog">
+      <h2 id="proof-title">แอดของข้อความนี้</h2>
+      <div id="proof-body"></div>
+      <button type="submit" value="cancel">ปิด</button>
+    </form>
+  </dialog>
   <script src="/boot.js"></script>
   <script type="module" src="/app.js"></script>
 </body>

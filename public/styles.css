@@ -199,3 +199,227 @@ details.body-copy p { white-space: pre-wrap; margin: 0.3cqw 0; }
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto; }
 }
+
+/* Sample presentation layout: opening + Coworkers only. Other slides stay until this is approved. */
+.slide.poster,
+.slide.essay {
+  background: #f6f0e8;
+  color: #241e1c;
+  padding: 2.6cqw 3cqw 1.1cqw;
+  gap: 1.1cqw;
+}
+.slide.poster .kicker,
+.slide.essay .kicker {
+  color: #8c8178;
+  font-size: 1.15cqw;
+  font-weight: 600;
+  margin: 0 0 0.7cqw;
+}
+.slide.poster .question,
+.slide.essay .question {
+  margin: 0 0 0.45cqw;
+  color: #c45c6a;
+  font-size: 1.45cqw;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.slide.poster h1 {
+  max-width: 18em;
+  font-size: 3.55cqw;
+  line-height: 1.12;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.slide.essay h1 {
+  max-width: 20em;
+  font-size: 2.15cqw;
+  line-height: 1.2;
+  font-weight: 700;
+}
+.slide.poster .content,
+.slide.essay .content {
+  justify-content: flex-start;
+  gap: 1.1cqw;
+}
+.slide.poster .bookline { margin-top: 1.6cqw; }
+
+.bookline {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  padding: 0.9cqw 0 0;
+  border-top: 1.5px solid #241e1c;
+}
+.bookline li {
+  padding: 0 1.1cqw 0 0;
+  border-right: 1px solid #e4d8cc;
+  margin-right: 1.1cqw;
+}
+.bookline li:last-child { border-right: 0; margin-right: 0; }
+.bookline .name { display: block; font-size: 1.15cqw; font-weight: 600; }
+.bookline .roas {
+  display: block;
+  margin-top: 0.25cqw;
+  font-size: 2.7cqw;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.bookline .roas.over { color: #3e6b58; }
+.bookline .roas.under { color: #c45c6a; }
+.bookline .when { display: block; margin-top: 0.45cqw; color: #8c8178; font-size: 1.02cqw; }
+.footnote {
+  display: flex;
+  justify-content: space-between;
+  gap: 1cqw;
+  align-items: baseline;
+  margin: 0;
+  color: #8c8178;
+  font-size: 0.98cqw;
+  line-height: 1.4;
+}
+.footnote button,
+.quiet-link {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  color: #241e1c;
+  font-size: 0.98cqw;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.hero-quote {
+  margin: 0.2cqw 0 0;
+  max-width: 22em;
+  font-size: 2.85cqw;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+.hero-row {
+  display: grid;
+  grid-template-columns: 11cqw minmax(0, 1fr);
+  gap: 1.3cqw;
+  align-items: end;
+}
+.hero-row img,
+.hero-fallback {
+  width: 11cqw;
+  height: 11cqw;
+  object-fit: cover;
+  background: #e7d3c5;
+}
+.hero-fallback {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  font-size: 0.9cqw;
+  color: #8c8178;
+  padding: 0.4cqw;
+}
+.hero-name { margin: 0; font-size: 1.05cqw; font-weight: 600; line-height: 1.35; }
+.hero-nums { margin: 0.35cqw 0 0; font-size: 1.7cqw; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hero-nums span { font-weight: 400; font-size: 1.05cqw; color: #8c8178; }
+.hero-sub { margin: 0.25cqw 0 0; color: #8c8178; font-size: 1.05cqw; }
+.aside-quote {
+  margin: 0;
+  padding-top: 0.8cqw;
+  border-top: 1px solid #e4d8cc;
+  max-width: 46em;
+}
+.aside-quote .label { margin: 0; color: #c45c6a; font-size: 1cqw; font-weight: 600; }
+.aside-quote .line { margin: 0.25cqw 0 0; font-size: 1.35cqw; font-weight: 600; line-height: 1.35; }
+.aside-quote .nums { margin: 0.2cqw 0 0; color: #8c8178; font-size: 1.05cqw; }
+
+.slide.poster .slide-notes,
+.slide.essay .slide-notes {
+  flex: 0 0 15%;
+  border: 0;
+  border-radius: 0;
+  border-top: 1.5px solid #241e1c;
+  background: transparent;
+  padding: 0.55cqw 0 0;
+  gap: 0.2cqw;
+}
+.slide.poster .notes-top strong,
+.slide.essay .notes-top strong { font-size: 1cqw; font-weight: 600; }
+.slide.poster .notes-status,
+.slide.essay .notes-status { font-size: 0.95cqw; }
+.slide.poster .notes-guest,
+.slide.essay .notes-guest { font-size: 1.05cqw; }
+.slide.poster .notes-login,
+.slide.essay .notes-login { flex-wrap: nowrap; }
+.slide.poster .notes-login input,
+.slide.essay .notes-login input,
+.slide.poster .note-text,
+.slide.essay .note-text {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.15cqw 0;
+}
+.slide.poster .notes-tools button:not(:first-child),
+.slide.essay .notes-tools button:not(:first-child) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+.slide.poster .notes-login button,
+.slide.essay .notes-login button,
+.slide.poster .notes-tools button,
+.slide.essay .notes-tools button {
+  background: transparent;
+  border-radius: 0;
+  padding: 0 0.4cqw 0 0;
+  color: #8c8178;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.slide.poster .note-text,
+.slide.essay .note-text { min-height: 2.4cqw; font-size: 1.15cqw; }
+
+dialog {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  max-width: none;
+  max-height: none;
+  width: 100%;
+  height: 100%;
+}
+dialog::backdrop { background: rgba(36, 30, 28, 0.35); }
+dialog form {
+  width: min(920px, calc(100vw - 48px));
+  max-height: min(78dvh, 720px);
+  margin: 8dvh auto;
+  background: #f6f0e8;
+  color: #241e1c;
+  padding: 28px 32px;
+  overflow: auto;
+  border-top: 4px solid #c45c6a;
+}
+dialog h2 { margin: 0 0 12px; font-size: 28px; }
+dialog p { margin: 0 0 10px; line-height: 1.45; }
+dialog form > button[value="cancel"] {
+  margin-top: 8px;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  text-decoration: underline;
+}
+.proof-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.proof-table th, .proof-table td {
+  border-bottom: 1px solid #e4d8cc;
+  padding: 8px 6px;
+  vertical-align: top;
+  text-align: left;
+}
+.proof-table .name { font-weight: 600; min-width: 220px; }
+.proof-table img { width: 54px; height: 54px; object-fit: cover; }
+dialog a { color: #241e1c; }
