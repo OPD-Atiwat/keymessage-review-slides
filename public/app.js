@@ -1,3 +1,4 @@
+import { analysisItemId } from "/shared/analysis.js";
 import { rates, sumTotals, volumeFlag } from "/shared/metrics.js";
 import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js";
 import { contentBadge } from "/shared/status-labels.js";
@@ -35,6 +36,7 @@ let userMoved = false;
 const adState = { period: "oct", book: "", tag: "", sort: "revenue", q: "", page: 0, bodyKey: "", contentId: "all", statusId: "all" };
 let statusData = { ads_by_id: {}, summary: {} };
 let webView = { view: "overview", book: "Mind", pages: {} };
+const analysisState = { items: {}, drafts: {} };
 const noteState = {
   configured: false,
   reason: "",
@@ -924,13 +926,7 @@ async function loadNotes() {
 
 async function logout() {
   await fetch("/api/logout", { method: "POST" });
-  noteState.authed = false;
-  noteState.csrf = "";
-  noteState.notes = {};
-  noteState.dirty = {};
-  noteState.conflict = {};
-  noteState.pendingImport = null;
-  paintNotes();
+  location.href = "/";
 }
 
 async function exportNotes() {
@@ -1015,8 +1011,11 @@ async function refreshSession() {
     const session = await fetch("/api/session").then((response) => response.json());
     noteState.authed = Boolean(session.authenticated);
     noteState.csrf = session.csrf || "";
-    if (noteState.authed) await loadNotes();
-    else paintNotes();
+    if (noteState.authed) {
+      await loadNotes();
+      await loadAnalysis();
+    } else paintNotes();
+    if (document.body.classList.contains("mode-web")) showWeb();
   } catch {
     noteState.configured = false;
     noteState.reason = "ติดต่อเซิร์ฟเวอร์บันทึกไม่ได้";
@@ -1029,10 +1028,8 @@ function bindChrome() {
   $("#next").addEventListener("click", () => show(index + 1, true));
   $("#jump").addEventListener("change", (event) => show(Number(event.target.value), true));
   $("#full").addEventListener("click", () => {
-    document.body.classList.add("mode-present");
-    document.body.classList.remove("mode-web");
-    document.querySelectorAll("#webnav button[data-view]").forEach((button) => button.classList.toggle("on", button.dataset.view === "present"));
-    const target = document.getElementById("viewport");
+    const slides = document.body.classList.contains("mode-present");
+    const target = document.getElementById(slides ? "viewport" : "web-stage");
     if (document.fullscreenElement) document.exitFullscreen();
     else target.requestFullscreen().catch(() => {});
   });
@@ -1067,36 +1064,144 @@ function showWeb() {
     contentId: adState.contentId,
     statusId: adState.statusId,
     pages: webView.pages,
+    picks: analysisState.items,
+    drafts: analysisState.drafts,
+    legacyNotes: Object.entries(noteState.notes || {}).map(([id, note]) => ({ id, text: note.text || "" })),
     onBook: (id) => {
       webView = { view: "book", book: id, pages: webView.pages };
-      document.querySelectorAll("#webnav button[data-view]").forEach((button) => {
-        button.classList.toggle("on", button.dataset.view === "book" && button.dataset.book === id);
-      });
+      markNav();
       showWeb();
     },
     onPage: (key, page) => {
       webView.pages[key] = page;
       showWeb();
     },
+    onPick: togglePick,
+    onDraft: (itemId, text) => {
+      analysisState.drafts[itemId] = text;
+    },
+    onSave: saveAnalysis,
+    onRemove: removeAnalysis,
   });
+}
+
+function markNav() {
+  document.querySelectorAll("#webnav button[data-view]").forEach((item) => {
+    const on = item.dataset.view === webView.view && (item.dataset.view !== "book" || item.dataset.book === webView.book);
+    item.classList.toggle("on", on);
+  });
+}
+
+async function loadAnalysis() {
+  const response = await fetch("/api/analysis");
+  if (!response.ok) {
+    analysisState.items = {};
+    return;
+  }
+  const data = await response.json();
+  analysisState.items = data.items || {};
+}
+
+async function togglePick(ad, period) {
+  if (!noteState.authed) return;
+  const itemId = analysisItemId(period, ad.adId);
+  if (analysisState.items[itemId]) {
+    await removeAnalysis(itemId);
+    return;
+  }
+  const response = await fetch("/api/analysis/select", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-csrf-token": noteState.csrf },
+    body: JSON.stringify({ adId: ad.adId, reportPeriod: period }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.item) return;
+  analysisState.items[data.item.itemId] = data.item;
+  const button = document.querySelector(`[data-pick="${itemId}"]`);
+  if (button) {
+    button.textContent = "เลือกแล้ว";
+    button.classList.add("on");
+  }
+}
+
+async function saveAnalysis(itemId, text) {
+  const item = analysisState.items[itemId];
+  if (!item || !noteState.authed) return;
+  const status = document.querySelector(`[data-analysis-status="${itemId}"]`);
+  if (status) status.textContent = "กำลังบันทึก…";
+  const response = await fetch("/api/analysis/" + encodeURIComponent(itemId), {
+    method: "PUT",
+    headers: { "content-type": "application/json", "x-csrf-token": noteState.csrf },
+    body: JSON.stringify({ text, baseRevision: item.revision || 0 }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (response.status === 409 && data.item) {
+    analysisState.items[itemId] = data.item;
+    if (status) status.textContent = "มีฉบับใหม่กว่าบนเซิร์ฟเวอร์ — ยังไม่ได้เขียนทับ";
+    return;
+  }
+  if (!response.ok || !data.saved) {
+    if (status) status.textContent = data.error || "บันทึกไม่สำเร็จ — ข้อความยังอยู่ในช่องนี้";
+    return;
+  }
+  analysisState.items[itemId] = data.item;
+  if (analysisState.drafts[itemId] === data.item.text) delete analysisState.drafts[itemId];
+  if (status) status.textContent = "บันทึกแล้ว · " + formatTime(data.item.updatedAt);
+}
+
+async function removeAnalysis(itemId) {
+  const item = analysisState.items[itemId];
+  if (!item) return;
+  const text = (analysisState.drafts[itemId] ?? item.text ?? "").trim();
+  let confirmDelete = false;
+  if (text) {
+    confirmDelete = window.confirm("รายการนี้มีบันทึกวิเคราะห์ เอาออกจากรายการหรือไม่");
+    if (!confirmDelete) return;
+  }
+  const response = await fetch("/api/analysis/" + encodeURIComponent(itemId), {
+    method: "DELETE",
+    headers: { "content-type": "application/json", "x-csrf-token": noteState.csrf },
+    body: JSON.stringify({ confirm: confirmDelete }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (response.status === 409 && data.needsConfirm) {
+    if (!window.confirm("รายการนี้มีบันทึกวิเคราะห์ เอาออกจากรายการหรือไม่")) return;
+    const retry = await fetch("/api/analysis/" + encodeURIComponent(itemId), {
+      method: "DELETE",
+      headers: { "content-type": "application/json", "x-csrf-token": noteState.csrf },
+      body: JSON.stringify({ confirm: true }),
+    });
+    if (!retry.ok) return;
+  } else if (!response.ok) {
+    return;
+  }
+  delete analysisState.items[itemId];
+  delete analysisState.drafts[itemId];
+  if (webView.view === "analysis") showWeb();
+  else {
+    const button = document.querySelector(`[data-pick="${itemId}"]`);
+    if (button) {
+      button.textContent = "เลือก";
+      button.classList.remove("on");
+    }
+  }
 }
 
 function bindWeb() {
   document.querySelectorAll("#webnav button[data-view]").forEach((button) => {
     button.addEventListener("click", () => {
       webView = { view: button.dataset.view, book: button.dataset.book || webView.book };
-      document.querySelectorAll("#webnav button[data-view]").forEach((item) => {
-        const on = item.dataset.view === webView.view && (item.dataset.view !== "book" || item.dataset.book === webView.book);
-        item.classList.toggle("on", on);
-      });
+      markNav();
       document.body.classList.toggle("mode-present", webView.view === "present");
       document.body.classList.toggle("mode-web", webView.view !== "present");
       if (webView.view !== "present") showWeb();
     });
   });
+  document.getElementById("logout").addEventListener("click", logout);
   document.getElementById("report-period").addEventListener("change", (event) => {
     adState.period = event.target.value;
     adState.page = 0;
+    syncAsof();
     refreshViews();
   });
   document.getElementById("content-month").addEventListener("change", (event) => {
@@ -1107,6 +1212,7 @@ function bindWeb() {
   document.getElementById("status-filter").addEventListener("change", (event) => {
     adState.statusId = event.target.value;
     adState.page = 0;
+    syncAsof();
     refreshViews();
   });
   document.getElementById("creator-filter").addEventListener("change", (event) => {
@@ -1125,6 +1231,13 @@ function refreshViews() {
   const mount = document.querySelector('[data-mount="s10-ads"] .ad-results') ? document.querySelector('[data-mount="s10-ads"]') : null;
   if (mount) renderAdPage(mount);
   if (document.body.classList.contains("mode-web")) showWeb();
+}
+
+function syncAsof() {
+  const labels = { sep: "ก.ย. ทั้งเดือน", oct: "ต.ค. ทั้งเดือน", oct1_7: "1–7 ต.ค.", nov1_7: "1–7 พ.ย. (ยังไม่ครบเดือน)" };
+  const selected = document.getElementById("report-period").value;
+  document.getElementById("asof").textContent = `ผลลัพธ์ช่วง ${labels[selected]} · ข้อมูลถึง 7 พ.ย. 2569`;
+  document.getElementById("status-asof").hidden = document.getElementById("status-filter").value === "all";
 }
 
 function fillFilters() {
@@ -1154,6 +1267,7 @@ async function init() {
   deck = await response.json();
   statusData = await fetch("/data/ad-status.json").then((item) => item.json());
   fillFilters();
+  syncAsof();
   renderAll();
   showWeb();
   deckEl.classList.add("ready");

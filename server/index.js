@@ -1,20 +1,27 @@
+import { randomBytes } from "node:crypto";
 import { createServer } from "node:http";
+import { readFileSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
+import { parseAnalysisItemId, REPORT_PERIODS } from "../shared/analysis.js";
 import { DECK_ID, MAX_NOTE, NOTE_IDS, mapImportedNotes } from "../shared/slides.js";
 import {
   COOKIE,
+  authEnvState,
   clientIp,
   cookieFlags,
   envStatus,
+  hashPassword,
   newSession,
   rateLimit,
   readCookies,
   readSession,
   safeError,
   sameOrigin,
+  storedSecretsStatus,
+  useStoredSecrets,
   verifyPassword,
 } from "./security.js";
 
@@ -48,11 +55,66 @@ function notesConfig() {
   return { configured: true, reason: "" };
 }
 
+async function ensureRuntimeAuth(db) {
+  await db.query(`CREATE TABLE IF NOT EXISTS app_runtime (
+    key text PRIMARY KEY,
+    value text NOT NULL
+  )`);
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("LOCK TABLE app_runtime IN EXCLUSIVE MODE");
+    const existing = await client.query(
+      "SELECT key, value FROM app_runtime WHERE key = ANY($1::text[])",
+      [["password_hash", "session_secret"]]
+    );
+    const stored = Object.fromEntries(existing.rows.map((row) => [row.key, row.value]));
+    let hash = stored.password_hash || "";
+    let secret = stored.session_secret || "";
+    if (!hash && !secret) {
+      const password = process.env.BOOTSTRAP_PASSWORD || "";
+      if (password.length < 10) {
+        await client.query("ROLLBACK");
+        return {
+          ok: false,
+          reason: password
+            ? "BOOTSTRAP_PASSWORD สั้นเกิน (อย่างน้อย 10 ตัว)"
+            : "ตั้ง BOOTSTRAP_PASSWORD อย่างน้อย 10 ตัวสำหรับเปิดครั้งแรก เซิร์ฟเวอร์จะสร้างรหัสแฮชและกุญแจเซสชันเก็บในฐานนี้",
+        };
+      }
+      hash = hashPassword(password);
+      secret = randomBytes(32).toString("hex");
+      await client.query(
+        "INSERT INTO app_runtime (key, value) VALUES ('password_hash', $1), ('session_secret', $2)",
+        [hash, secret]
+      );
+    }
+    const check = storedSecretsStatus(hash, secret);
+    if (!check.ok) {
+      await client.query("ROLLBACK");
+      return check;
+    }
+    await client.query("COMMIT");
+    useStoredSecrets(hash, secret);
+    return { ok: true, reason: "" };
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function initDb() {
-  const env = envStatus();
-  if (!env.ok) {
+  if (!process.env.DATABASE_URL) {
     dbReady = false;
-    dbReason = env.reason;
+    dbReason = envStatus().reason;
+    return;
+  }
+  const auth = authEnvState();
+  if (auth.state === "invalid") {
+    dbReady = false;
+    dbReason = auth.reason;
     return;
   }
   const next = new Pool({ connectionString: process.env.DATABASE_URL, max: 5 });
@@ -71,6 +133,33 @@ async function initDb() {
       created_at timestamptz NOT NULL,
       PRIMARY KEY (slide_id, revision)
     )`);
+    await next.query(`CREATE TABLE IF NOT EXISTS analysis_picks (
+      item_id text PRIMARY KEY,
+      ad_id text NOT NULL,
+      report_period text NOT NULL,
+      book text NOT NULL,
+      content_month text NOT NULL,
+      content_month_label text NOT NULL,
+      note text NOT NULL,
+      revision integer NOT NULL,
+      updated_at timestamptz NOT NULL
+    )`);
+    await next.query(`CREATE TABLE IF NOT EXISTS analysis_revisions (
+      item_id text NOT NULL,
+      revision integer NOT NULL,
+      body text NOT NULL,
+      created_at timestamptz NOT NULL,
+      PRIMARY KEY (item_id, revision)
+    )`);
+    if (auth.state === "pending") {
+      const ready = await ensureRuntimeAuth(next);
+      if (!ready.ok) {
+        dbReady = false;
+        dbReason = ready.reason;
+        await next.end().catch(() => {});
+        return;
+      }
+    }
     pool = next;
     dbReady = true;
     dbReason = "";
@@ -239,6 +328,144 @@ async function writeNote(slideId, text, baseRevision) {
   }
 }
 
+function analysisTarget(pathname) {
+  if (!pathname.startsWith("/api/analysis/")) return null;
+  const raw = pathname.slice("/api/analysis/".length);
+  if (!raw || raw === "select") return null;
+  let decoded = raw;
+  try {
+    decoded = decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
+  return parseAnalysisItemId(decoded) ? decoded : null;
+}
+
+let adCatalogCache = null;
+
+function adCatalog() {
+  if (adCatalogCache) return adCatalogCache;
+  const deck = JSON.parse(readFileSync(path.join(PUBLIC_DIR, "data/deck.json"), "utf8"));
+  const status = JSON.parse(readFileSync(path.join(PUBLIC_DIR, "data/ad-status.json"), "utf8"));
+  adCatalogCache = { ads: deck.ads || [], byId: status.ads_by_id || {} };
+  return adCatalogCache;
+}
+
+function mapAnalysis(row) {
+  return {
+    itemId: row.item_id,
+    adId: row.ad_id,
+    reportPeriod: row.report_period,
+    book: row.book,
+    contentMonth: row.content_month,
+    contentMonthLabel: row.content_month_label,
+    text: row.note,
+    revision: row.revision,
+    updatedAt: new Date(row.updated_at).toISOString(),
+  };
+}
+
+async function listAnalysis() {
+  const result = await pool.query(
+    `SELECT item_id, ad_id, report_period, book, content_month, content_month_label, note, revision, updated_at
+     FROM analysis_picks ORDER BY updated_at DESC`
+  );
+  const items = {};
+  for (const row of result.rows) items[row.item_id] = mapAnalysis(row);
+  return items;
+}
+
+async function selectAnalysis(adId, reportPeriod) {
+  if (!REPORT_PERIODS.includes(reportPeriod) || !/^\d+$/.test(String(adId || ""))) {
+    return { status: 400, error: "ไม่รู้จักแอดหรือช่วงผลลัพธ์" };
+  }
+  const catalog = adCatalog();
+  const ad = catalog.ads.find((item) => item.adId === adId && item.period === reportPeriod);
+  if (!ad) return { status: 400, error: "ไม่พบแอดในช่วงผลลัพธ์นี้" };
+  const record = catalog.byId[adId];
+  if (record?.excluded_from_book_totals) return { status: 400, error: "แอดนี้ไม่ได้อยู่ในตารางที่ใช้เลือก" };
+  const itemId = `${reportPeriod}:${adId}`;
+  const contentMonth = record?.content_month || "unknown";
+  const contentMonthLabel = record?.content_month_label || "ไม่ระบุเดือน Content";
+  const existing = await pool.query(
+    `SELECT item_id, ad_id, report_period, book, content_month, content_month_label, note, revision, updated_at
+     FROM analysis_picks WHERE item_id = $1`,
+    [itemId]
+  );
+  if (existing.rows[0]) return { status: 200, item: mapAnalysis(existing.rows[0]) };
+  const inserted = await pool.query(
+    `INSERT INTO analysis_picks
+      (item_id, ad_id, report_period, book, content_month, content_month_label, note, revision, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, '', 0, now())
+     ON CONFLICT (item_id) DO NOTHING
+     RETURNING item_id, ad_id, report_period, book, content_month, content_month_label, note, revision, updated_at`,
+    [itemId, adId, reportPeriod, ad.book, contentMonth, contentMonthLabel]
+  );
+  if (inserted.rows[0]) return { status: 200, item: mapAnalysis(inserted.rows[0]) };
+  const again = await pool.query(
+    `SELECT item_id, ad_id, report_period, book, content_month, content_month_label, note, revision, updated_at
+     FROM analysis_picks WHERE item_id = $1`,
+    [itemId]
+  );
+  return { status: 200, item: mapAnalysis(again.rows[0]) };
+}
+
+async function writeAnalysis(itemId, text, baseRevision) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const current = await client.query(
+      `SELECT item_id, ad_id, report_period, book, content_month, content_month_label, note, revision, updated_at
+       FROM analysis_picks WHERE item_id = $1 FOR UPDATE`,
+      [itemId]
+    );
+    const row = current.rows[0];
+    if (!row) {
+      await client.query("ROLLBACK");
+      return { missing: true };
+    }
+    if (row.revision !== baseRevision) {
+      await client.query("ROLLBACK");
+      return { conflict: true, item: mapAnalysis(row) };
+    }
+    if (row.note === text) {
+      await client.query("COMMIT");
+      return { item: mapAnalysis(row) };
+    }
+    const next = row.revision + 1;
+    const updated = await client.query(
+      `UPDATE analysis_picks SET note = $2, revision = $3, updated_at = now()
+       WHERE item_id = $1
+       RETURNING item_id, ad_id, report_period, book, content_month, content_month_label, note, revision, updated_at`,
+      [itemId, text, next]
+    );
+    await client.query(
+      "INSERT INTO analysis_revisions (item_id, revision, body, created_at) VALUES ($1, $2, $3, now())",
+      [itemId, next, text]
+    );
+    await client.query("COMMIT");
+    return { item: mapAnalysis(updated.rows[0]) };
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function deleteAnalysis(itemId, confirm) {
+  const current = await pool.query(
+    `SELECT item_id, ad_id, report_period, book, content_month, content_month_label, note, revision, updated_at
+     FROM analysis_picks WHERE item_id = $1`,
+    [itemId]
+  );
+  const row = current.rows[0];
+  if (!row) return { missing: true };
+  if (String(row.note || "").trim() && confirm !== true) return { needsConfirm: true, item: mapAnalysis(row) };
+  await pool.query("DELETE FROM analysis_picks WHERE item_id = $1", [itemId]);
+  return { deleted: true };
+}
+
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url || "/", "http://localhost");
@@ -252,6 +479,17 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method !== "GET" && req.method !== "HEAD") return send(res, 405, { error: "method" });
+    const configured = notesConfig().configured;
+    const session = sessionFrom(req);
+    const openFile = url.pathname === "/login.html" || url.pathname === "/login.js" || url.pathname === "/config.html" || url.pathname === "/styles.css" || url.pathname.startsWith("/fonts/");
+    if (!openFile && !session) {
+      if (!configured) {
+        if (url.pathname === "/") return sendFile(res, path.join(PUBLIC_DIR, "config.html"));
+        return send(res, 503, { error: notesConfig().reason, saved: false });
+      }
+      if (url.pathname === "/") return sendFile(res, path.join(PUBLIC_DIR, "login.html"));
+      return send(res, 401, { error: "ต้องเข้าสู่ระบบก่อนดูข้อมูล", saved: false });
+    }
     let filePath = null;
     if (url.pathname.startsWith("/shared/")) {
       filePath = safeFile(SHARED_DIR, url.pathname.slice("/shared".length));
@@ -319,6 +557,61 @@ async function handleApi(req, res, url) {
     return send(res, 200, { ok: true }, { "set-cookie": `${COOKIE}=; ${clear}` });
   }
 
+  if (req.method === "GET" && url.pathname === "/api/analysis") {
+    const session = requireEditor(req, res);
+    if (!session) return;
+    return send(res, 200, { items: await listAnalysis() });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/analysis/select") {
+    if (!sameOrigin(req)) return send(res, 403, { error: "ต้นทางคำขอไม่ถูกต้อง", saved: false });
+    const session = requireEditor(req, res);
+    if (!session) return;
+    if (req.headers["x-csrf-token"] !== session.csrf) {
+      return send(res, 403, { error: "คำขอแก้บันทึกไม่ผ่านการตรวจ", saved: false });
+    }
+    const ip = clientIp(req);
+    if (!rateLimit("write:" + (ip === "unknown" ? session.csrf : ip), 60, 60 * 1000)) {
+      return send(res, 429, { error: "บันทึกถี่เกิน ลองอีกครั้ง", saved: false });
+    }
+    const body = await readBody(req);
+    const result = await selectAnalysis(String(body.adId || ""), String(body.reportPeriod || ""));
+    if (result.error) return send(res, result.status, { error: result.error, saved: false });
+    return send(res, 200, { saved: true, item: result.item });
+  }
+
+  const analysisItemIdFromPath = analysisTarget(url.pathname);
+  if (req.method === "PUT" && analysisItemIdFromPath) {
+    if (!sameOrigin(req)) return send(res, 403, { error: "ต้นทางคำขอไม่ถูกต้อง", saved: false });
+    const session = requireEditor(req, res);
+    if (!session) return;
+    if (req.headers["x-csrf-token"] !== session.csrf) {
+      return send(res, 403, { error: "คำขอแก้บันทึกไม่ผ่านการตรวจ", saved: false });
+    }
+    const body = await readBody(req);
+    if (!validText(body.text) || !Number.isInteger(body.baseRevision) || body.baseRevision < 0) {
+      return send(res, 400, { error: "ข้อความบันทึกไม่ผ่านเงื่อนไข", saved: false });
+    }
+    const result = await writeAnalysis(analysisItemIdFromPath, body.text, body.baseRevision);
+    if (result.missing) return send(res, 404, { error: "ยังไม่ได้เลือกรายการนี้", saved: false });
+    if (result.conflict) return send(res, 409, { error: "มีฉบับใหม่กว่า", saved: false, item: result.item });
+    return send(res, 200, { saved: true, item: result.item });
+  }
+
+  if (req.method === "DELETE" && analysisItemIdFromPath) {
+    if (!sameOrigin(req)) return send(res, 403, { error: "ต้นทางคำขอไม่ถูกต้อง", saved: false });
+    const session = requireEditor(req, res);
+    if (!session) return;
+    if (req.headers["x-csrf-token"] !== session.csrf) {
+      return send(res, 403, { error: "คำขอแก้บันทึกไม่ผ่านการตรวจ", saved: false });
+    }
+    const body = await readBody(req);
+    const result = await deleteAnalysis(analysisItemIdFromPath, body.confirm);
+    if (result.missing) return send(res, 404, { error: "ไม่พบรายการ", saved: false });
+    if (result.needsConfirm) return send(res, 409, { error: "รายการนี้มีบันทึก ยืนยันก่อนเอาออก", saved: false, needsConfirm: true, item: result.item });
+    return send(res, 200, { saved: true, deleted: true });
+  }
+
   if (req.method === "GET" && url.pathname === "/api/notes") {
     const session = requireEditor(req, res);
     if (!session) return;
@@ -340,7 +633,8 @@ async function handleApi(req, res, url) {
     if (!sameOrigin(req)) return send(res, 403, { error: "ต้นทางคำขอไม่ถูกต้อง", saved: false });
     const session = requireEditor(req, res);
     if (!session) return;
-    if (!rateLimit("write:" + clientIp(req), 60, 60 * 1000)) {
+    const ip = clientIp(req);
+    if (!rateLimit("write:" + (ip === "unknown" ? session.csrf : ip), 60, 60 * 1000)) {
       return send(res, 429, { error: "บันทึกถี่เกิน ลองอีกครั้ง", saved: false });
     }
     const slideId = put[1];

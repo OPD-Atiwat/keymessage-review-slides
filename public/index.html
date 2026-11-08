@@ -11,61 +11,65 @@
   <header id="webnav">
     <strong>วงคุย Key Message</strong>
     <nav>
-      <button type="button" data-view="overview" class="on">ภาพรวมเดือน</button>
+      <button type="button" data-view="overview" class="on">ภาพรวม</button>
       <button type="button" data-view="book" data-book="Mind">Mind</button>
       <button type="button" data-view="book" data-book="Coworkers">ออฟฟิศ</button>
       <button type="button" data-view="book" data-book="SurvivalGuide">Survival</button>
       <button type="button" data-view="book" data-book="Trap">กับดัก</button>
-      <button type="button" data-view="ads">ตารางแอด</button>
+      <button type="button" data-view="analysis">วิเคราะห์ต่อยอด</button>
       <button type="button" data-view="present">สไลด์</button>
+      <button type="button" id="logout">ออกจากระบบ</button>
     </nav>
     <label>ผลลัพธ์ช่วง
       <select id="report-period" aria-label="ผลลัพธ์ช่วง">
         <option value="sep">ก.ย. ทั้งเดือน</option>
         <option value="oct" selected>ต.ค. ทั้งเดือน</option>
         <option value="oct1_7">1–7 ต.ค.</option>
-        <option value="nov1_7">1–7 พ.ย. ถึงวานนี้</option>
+        <option value="nov1_7">1–7 พ.ย.</option>
       </select>
     </label>
-    <label>Content เดือน
-      <select id="content-month" aria-label="Content เดือน">
-        <option value="all">ทั้งหมด</option>
-        <option value="unknown">ไม่ระบุเดือน Content</option>
-      </select>
-    </label>
-    <label>สถานะ 8 พ.ย. 11:39
-      <select id="status-filter" aria-label="สถานะบัญชีตอนตรวจ">
-        <option value="all">ทั้งหมด</option>
-        <option value="ACTIVE">เปิดใช้งาน (ยังไม่ยืนยันการส่งจริง)</option>
-        <option value="PAUSED">หยุดชั่วคราว</option>
-        <option value="ADSET_PAUSED">ชุดโฆษณาหยุดชั่วคราว</option>
-        <option value="WITH_ISSUES">มีปัญหา</option>
-      </select>
-    </label>
-    <label>ป้าย
-      <select id="creator-filter" data-filter="creator-filter" aria-label="ป้ายในชื่อแอด"></select>
-    </label>
-    <label>เรียง
-      <select id="sort-filter" data-filter="sort-filter" aria-label="เรียง">
-        <option value="revenue">รายได้ Meta</option>
-        <option value="spend">Spend</option>
-        <option value="roas">ROAS</option>
-        <option value="chats">แชท</option>
-        <option value="costPerMsg">บาท/แชท</option>
-        <option value="cpm">CPM</option>
-        <option value="purchases">ซื้อ</option>
-        <option value="cvr">ซื้อ÷แชท</option>
-        <option value="aov">AOV</option>
-      </select>
-    </label>
-    <button type="button" id="full">เต็มจอสไลด์</button>
+    <span id="asof" class="asof">ผลลัพธ์ช่วง ต.ค. ทั้งเดือน · ข้อมูลถึง 7 พ.ย. 2569</span>
+    <span id="status-asof" class="asof status-asof" hidden>สถานะตรวจ 8 พ.ย. 11:39 ไม่ใช่ผลวันที่ 7</span>
+    <details class="more">
+      <summary>ตัวกรอง</summary>
+      <label>Content เดือน
+        <select id="content-month" aria-label="Content เดือน">
+          <option value="all">ทั้งหมด</option>
+          <option value="unknown">ไม่ระบุเดือน Content</option>
+        </select>
+      </label>
+      <label>สถานะตอนตรวจ
+        <select id="status-filter" aria-label="สถานะบัญชีตอนตรวจ">
+          <option value="all">ทั้งหมด</option>
+          <option value="ACTIVE">เปิดใช้งาน (ยังไม่ยืนยันการส่งจริง)</option>
+          <option value="PAUSED">หยุดชั่วคราว</option>
+          <option value="ADSET_PAUSED">ชุดโฆษณาหยุดชั่วคราว</option>
+          <option value="WITH_ISSUES">มีปัญหา</option>
+        </select>
+      </label>
+      <label>ป้าย
+        <select id="creator-filter" data-filter="creator-filter" aria-label="ป้ายในชื่อแอด"></select>
+      </label>
+      <label>เรียง
+        <select id="sort-filter" data-filter="sort-filter" aria-label="เรียง">
+          <option value="revenue">รายได้ Meta</option>
+          <option value="spend">Spend</option>
+          <option value="roas">ROAS</option>
+          <option value="chats">แชท</option>
+          <option value="costPerMsg">บาท/แชท</option>
+          <option value="cpm">CPM</option>
+          <option value="purchases">ซื้อ</option>
+          <option value="cvr">ซื้อ÷แชท</option>
+          <option value="aov">AOV</option>
+        </select>
+      </label>
+    </details>
+    <button type="button" id="full">เต็มจอ</button>
   </header>
   <section id="web-panel">
+    <div id="web-stage">
     <div id="web-main"></div>
-    <section class="slide-notes" data-notes-for="web-overview" aria-label="บันทึกภาพรวม">
-      <div class="notes-top"><strong>บันทึก</strong><span class="notes-status" data-notes-status>เข้าสู่ระบบเพื่อดูและแก้บันทึก</span></div>
-      <div class="notes-body" data-notes-body><p class="notes-guest">เข้าสู่ระบบเพื่อดูและแก้บันทึก</p></div>
-    </section>
+    </div>
   </section>
   <div id="viewport">
     <div id="stage">
@@ -77,15 +81,6 @@
         <h1>ข้อความแอดเดือน ต.ค. ออฟฟิศ ROAS 1.45 Mind เหลือ 0.69</h1>
       </header>
       <div class="content" data-mount="s01-axis"></div>
-      <section class="slide-notes" data-notes-for="s01-axis" aria-label="บันทึกบนสไลด์">
-        <div class="notes-top">
-          <strong>บันทึกบนสไลด์</strong>
-          <span class="notes-status" data-notes-status>เข้าสู่ระบบเพื่อดูและแก้บันทึก</span>
-        </div>
-        <div class="notes-body" data-notes-body>
-          <p class="notes-guest">เข้าสู่ระบบเพื่อดูและแก้บันทึก</p>
-        </div>
-      </section>
     </section>
     <section class="slide" id="s02-sep-oct" data-id="s02-sep-oct">
       <header>
@@ -93,15 +88,6 @@
         <h1>ต.ค. ทั้งเดือน ออฟฟิศ ROAS 1.45 ส่วน Mind เหลือ 0.69</h1>
       </header>
       <div class="content" data-mount="s02-sep-oct"></div>
-      <section class="slide-notes" data-notes-for="s02-sep-oct" aria-label="บันทึกบนสไลด์">
-        <div class="notes-top">
-          <strong>บันทึกบนสไลด์</strong>
-          <span class="notes-status" data-notes-status>เข้าสู่ระบบเพื่อดูและแก้บันทึก</span>
-        </div>
-        <div class="notes-body" data-notes-body>
-          <p class="notes-guest">เข้าสู่ระบบเพื่อดูและแก้บันทึก</p>
-        </div>
-      </section>
     </section>
     <section class="slide" id="s03-matched-week" data-id="s03-matched-week">
       <header>
@@ -109,15 +95,6 @@
         <h1>สัปดาห์แรกของ พ.ย. ออฟฟิศค่าแชทถูกสุด และ ROAS 1.67</h1>
       </header>
       <div class="content" data-mount="s03-matched-week"></div>
-      <section class="slide-notes" data-notes-for="s03-matched-week" aria-label="บันทึกบนสไลด์">
-        <div class="notes-top">
-          <strong>บันทึกบนสไลด์</strong>
-          <span class="notes-status" data-notes-status>เข้าสู่ระบบเพื่อดูและแก้บันทึก</span>
-        </div>
-        <div class="notes-body" data-notes-body>
-          <p class="notes-guest">เข้าสู่ระบบเพื่อดูและแก้บันทึก</p>
-        </div>
-      </section>
     </section>
     <section class="slide" id="s04-km-overview" data-id="s04-km-overview">
       <header>
@@ -125,15 +102,6 @@
         <h1>ข้อความเรื่องคนในที่ทำงานและโรควิตกที่ใกล้ตัว ถือ ROAS เกิน 1</h1>
       </header>
       <div class="content" data-mount="s04-km-overview"></div>
-      <section class="slide-notes" data-notes-for="s04-km-overview" aria-label="บันทึกบนสไลด์">
-        <div class="notes-top">
-          <strong>บันทึกบนสไลด์</strong>
-          <span class="notes-status" data-notes-status>เข้าสู่ระบบเพื่อดูและแก้บันทึก</span>
-        </div>
-        <div class="notes-body" data-notes-body>
-          <p class="notes-guest">เข้าสู่ระบบเพื่อดูและแก้บันทึก</p>
-        </div>
-      </section>
     </section>
     <section class="slide" id="s05-mind" data-id="s05-mind">
       <header>
@@ -141,15 +109,6 @@
         <h1>Mind ทั้งเล่มยังต่ำกว่า 1 — แชทถูกไม่ได้แปลว่าซื้อตาม</h1>
       </header>
       <div class="content" data-mount="s05-mind"></div>
-      <section class="slide-notes" data-notes-for="s05-mind" aria-label="บันทึกบนสไลด์">
-        <div class="notes-top">
-          <strong>บันทึกบนสไลด์</strong>
-          <span class="notes-status" data-notes-status>เข้าสู่ระบบเพื่อดูและแก้บันทึก</span>
-        </div>
-        <div class="notes-body" data-notes-body>
-          <p class="notes-guest">เข้าสู่ระบบเพื่อดูและแก้บันทึก</p>
-        </div>
-      </section>
     </section>
     <section class="slide ref" id="s06-coworkers" data-id="s06-coworkers">
       <header>
@@ -161,15 +120,6 @@
         <p class="ref-page">6 / 12</p>
       </header>
       <div class="content" data-mount="s06-coworkers"></div>
-      <section class="slide-notes" data-notes-for="s06-coworkers" aria-label="บันทึกบนสไลด์">
-        <div class="notes-top">
-          <strong>บันทึกบนสไลด์</strong>
-          <span class="notes-status" data-notes-status>เข้าสู่ระบบเพื่อดูและแก้บันทึก</span>
-        </div>
-        <div class="notes-body" data-notes-body>
-          <p class="notes-guest">เข้าสู่ระบบเพื่อดูและแก้บันทึก</p>
-        </div>
-      </section>
     </section>
     <section class="slide" id="s07-survival" data-id="s07-survival">
       <header>
@@ -177,15 +127,6 @@
         <h1>Survival ทั้งเดือน ต.ค. ROAS 0.91 — บางข้อความต้น พ.ย. ฐานยังเล็ก</h1>
       </header>
       <div class="content" data-mount="s07-survival"></div>
-      <section class="slide-notes" data-notes-for="s07-survival" aria-label="บันทึกบนสไลด์">
-        <div class="notes-top">
-          <strong>บันทึกบนสไลด์</strong>
-          <span class="notes-status" data-notes-status>เข้าสู่ระบบเพื่อดูและแก้บันทึก</span>
-        </div>
-        <div class="notes-body" data-notes-body>
-          <p class="notes-guest">เข้าสู่ระบบเพื่อดูและแก้บันทึก</p>
-        </div>
-      </section>
     </section>
     <section class="slide" id="s08-trap" data-id="s08-trap">
       <header>
@@ -193,15 +134,6 @@
         <h1>กับดัก: โรควิตกสองข้อความ ให้ผลคนละแบบในสัปดาห์เดียวกัน</h1>
       </header>
       <div class="content" data-mount="s08-trap"></div>
-      <section class="slide-notes" data-notes-for="s08-trap" aria-label="บันทึกบนสไลด์">
-        <div class="notes-top">
-          <strong>บันทึกบนสไลด์</strong>
-          <span class="notes-status" data-notes-status>เข้าสู่ระบบเพื่อดูและแก้บันทึก</span>
-        </div>
-        <div class="notes-body" data-notes-body>
-          <p class="notes-guest">เข้าสู่ระบบเพื่อดูและแก้บันทึก</p>
-        </div>
-      </section>
     </section>
     <section class="slide" id="s09-same-copy" data-id="s09-same-copy">
       <header>
@@ -209,15 +141,6 @@
         <h1>ข้อความชุดเดียวกัน พอเปลี่ยนช่วง ROAS ไม่ได้ไปด้วยกัน</h1>
       </header>
       <div class="content" data-mount="s09-same-copy"></div>
-      <section class="slide-notes" data-notes-for="s09-same-copy" aria-label="บันทึกบนสไลด์">
-        <div class="notes-top">
-          <strong>บันทึกบนสไลด์</strong>
-          <span class="notes-status" data-notes-status>เข้าสู่ระบบเพื่อดูและแก้บันทึก</span>
-        </div>
-        <div class="notes-body" data-notes-body>
-          <p class="notes-guest">เข้าสู่ระบบเพื่อดูและแก้บันทึก</p>
-        </div>
-      </section>
     </section>
     <section class="slide ref" id="s10-ads" data-id="s10-ads">
       <header>
@@ -229,15 +152,6 @@
         <p class="ref-page">10 / 12</p>
       </header>
       <div class="content" data-mount="s10-ads"></div>
-      <section class="slide-notes" data-notes-for="s10-ads" aria-label="บันทึกบนสไลด์">
-        <div class="notes-top">
-          <strong>บันทึกบนสไลด์</strong>
-          <span class="notes-status" data-notes-status>เข้าสู่ระบบเพื่อดูและแก้บันทึก</span>
-        </div>
-        <div class="notes-body" data-notes-body>
-          <p class="notes-guest">เข้าสู่ระบบเพื่อดูและแก้บันทึก</p>
-        </div>
-      </section>
     </section>
     <section class="slide" id="s11-questions" data-id="s11-questions">
       <header>
@@ -245,15 +159,6 @@
         <h1>สิ่งที่ข้อความแอดยังตอบไม่ได้ เพราะยังไม่ได้ดูคลิป</h1>
       </header>
       <div class="content" data-mount="s11-questions"></div>
-      <section class="slide-notes" data-notes-for="s11-questions" aria-label="บันทึกบนสไลด์">
-        <div class="notes-top">
-          <strong>บันทึกบนสไลด์</strong>
-          <span class="notes-status" data-notes-status>เข้าสู่ระบบเพื่อดูและแก้บันทึก</span>
-        </div>
-        <div class="notes-body" data-notes-body>
-          <p class="notes-guest">เข้าสู่ระบบเพื่อดูและแก้บันทึก</p>
-        </div>
-      </section>
     </section>
     <section class="slide" id="s12-synthesis" data-id="s12-synthesis">
       <header>
@@ -261,15 +166,6 @@
         <h1>รอบนี้ข้อความแอดบอกอะไรได้ และอะไรยังต้องคุยต่อ</h1>
       </header>
       <div class="content" data-mount="s12-synthesis"></div>
-      <section class="slide-notes" data-notes-for="s12-synthesis" aria-label="บันทึกบนสไลด์">
-        <div class="notes-top">
-          <strong>บันทึกบนสไลด์</strong>
-          <span class="notes-status" data-notes-status>เข้าสู่ระบบเพื่อดูและแก้บันทึก</span>
-        </div>
-        <div class="notes-body" data-notes-body>
-          <p class="notes-guest">เข้าสู่ระบบเพื่อดูและแก้บันทึก</p>
-        </div>
-      </section>
     </section>
       </div>
     </div>

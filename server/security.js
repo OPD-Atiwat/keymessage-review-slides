@@ -3,21 +3,60 @@ import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypt
 export const COOKIE = "km_session";
 const MIN_SECRET = 32;
 
-export function envStatus() {
-  const missing = [];
-  if (!process.env.DATABASE_URL) missing.push("DATABASE_URL");
-  if (!process.env.EDITOR_PASSWORD_HASH) missing.push("EDITOR_PASSWORD_HASH");
-  if (!process.env.SESSION_SECRET) missing.push("SESSION_SECRET");
-  if (process.env.SESSION_SECRET && process.env.SESSION_SECRET.length < MIN_SECRET) {
-    return { ok: false, reason: "SESSION_SECRET สั้นเกินกว่าจะใช้เซ็นคุกกี้" };
+export function hashPassword(password) {
+  const N = 16384;
+  const r = 8;
+  const p = 1;
+  const salt = randomBytes(16);
+  const key = scryptSync(password, salt, 32, { N, r, p });
+  return `scrypt$${N}$${r}$${p}$${salt.toString("hex")}$${key.toString("hex")}`;
+}
+
+/** env = both secrets already injected. pending = first boot may load or create them in this project's database. */
+export function authEnvState() {
+  const hash = process.env.EDITOR_PASSWORD_HASH || "";
+  const secret = process.env.SESSION_SECRET || "";
+  if (secret && secret.length < MIN_SECRET) {
+    return { state: "invalid", reason: "SESSION_SECRET สั้นเกินกว่าจะใช้เซ็นคุกกี้" };
   }
-  if (process.env.EDITOR_PASSWORD_HASH && !parseHash(process.env.EDITOR_PASSWORD_HASH)) {
-    return { ok: false, reason: "EDITOR_PASSWORD_HASH ไม่ใช่รูปแบบ scrypt ที่เซิร์ฟเวอร์รองรับ" };
+  if (hash && !parseHash(hash)) {
+    return { state: "invalid", reason: "EDITOR_PASSWORD_HASH ไม่ใช่รูปแบบ scrypt ที่เซิร์ฟเวอร์รองรับ" };
   }
-  if (missing.length) {
-    return { ok: false, reason: "ยังไม่ได้ตั้ง " + missing.join(", ") };
+  if (hash && secret) return { state: "env", reason: "" };
+  if (hash || secret) {
+    return {
+      state: "invalid",
+      reason: "EDITOR_PASSWORD_HASH กับ SESSION_SECRET ต้องตั้งคู่กัน ถ้าไม่ใช้คู่นี้ ให้เว้นทั้งคู่แล้วตั้ง BOOTSTRAP_PASSWORD ครั้งแรก",
+    };
+  }
+  return { state: "pending", reason: "" };
+}
+
+export function storedSecretsStatus(hash, secret) {
+  if (!hash || !secret) {
+    return { ok: false, reason: "ค่าเข้าสู่ระบบในฐานไม่ครบคู่ และระบบจะไม่เขียนทับเอง" };
+  }
+  if (!parseHash(hash) || String(secret).length < MIN_SECRET) {
+    return { ok: false, reason: "ค่าเข้าสู่ระบบที่เก็บในฐานของโปรเจกต์นี้ใช้ไม่ได้ และระบบจะไม่เขียนทับเอง" };
   }
   return { ok: true, reason: "" };
+}
+
+export function useStoredSecrets(hash, secret) {
+  process.env.EDITOR_PASSWORD_HASH = hash;
+  process.env.SESSION_SECRET = secret;
+  delete process.env.BOOTSTRAP_PASSWORD;
+}
+
+export function envStatus() {
+  if (!process.env.DATABASE_URL) return { ok: false, reason: "ยังไม่ได้ตั้ง DATABASE_URL" };
+  const auth = authEnvState();
+  if (auth.state === "invalid") return { ok: false, reason: auth.reason };
+  if (auth.state === "env") return { ok: true, reason: "" };
+  return {
+    ok: false,
+    reason: "ตั้ง BOOTSTRAP_PASSWORD อย่างน้อย 10 ตัวสำหรับเปิดครั้งแรก เซิร์ฟเวอร์จะสร้างรหัสแฮชและกุญแจเซสชันเก็บในฐานนี้",
+  };
 }
 
 export function parseHash(stored) {
@@ -48,13 +87,26 @@ export function verifyPassword(password, stored) {
   return timingSafeEqual(actual, parsed.key);
 }
 
+function headerValue(req, name) {
+  const value = req.headers?.[name];
+  if (Array.isArray(value)) return String(value[0] || "");
+  return String(value || "");
+}
+
+/** Browser URL on this platform is always https://<slug>.opendurian.dev, including over VPN. */
+function platformBrowserHttps(req) {
+  const host = headerValue(req, "host").trim().toLowerCase().replace(/:\d+$/, "");
+  if (host.endsWith(".opendurian.dev") && host !== "opendurian.dev") return true;
+  return clientIp(req) !== "unknown";
+}
+
 export function requestIsHttps(req) {
   if (req.socket && req.socket.encrypted) return true;
   if (process.env.TRUST_PROXY === "1") {
-    const proto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim().toLowerCase();
-    return proto === "https";
+    const proto = headerValue(req, "x-forwarded-proto").split(",")[0].trim().toLowerCase();
+    if (proto === "https") return true;
   }
-  return false;
+  return platformBrowserHttps(req);
 }
 
 /** Secure cookies on HTTPS. Local HTTP only when explicitly allowed outside production. */
@@ -141,11 +193,9 @@ export function rateLimit(key, limit, windowMs) {
 }
 
 export function clientIp(req) {
-  if (process.env.TRUST_PROXY === "1") {
-    const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
-    if (forwarded) return forwarded;
-  }
-  return req.socket?.remoteAddress || "unknown";
+  const raw = headerValue(req, "cf-connecting-ip").trim();
+  if (!raw || raw.length > 64 || !/^[0-9a-fA-F:.]+$/.test(raw)) return "unknown";
+  return raw;
 }
 
 export function safeError(error) {

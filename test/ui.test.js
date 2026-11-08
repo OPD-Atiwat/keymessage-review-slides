@@ -44,22 +44,18 @@ async function fit(page) {
   return page.evaluate(() => {
     const stage = document.querySelector("#stage").getBoundingClientRect();
     const toolbar = document.querySelector("#toolbar").getBoundingClientRect();
-    const notes = document.querySelector(".slide.active .slide-notes").getBoundingClientRect();
     const content = document.querySelector(".slide.active .content").getBoundingClientRect();
     return {
       stageBottom: stage.bottom,
       toolbarTop: toolbar.top,
-      notesBottom: notes.bottom,
-      notesTop: notes.top,
       contentBottom: content.bottom,
-      notesHeight: notes.height,
+      noteCount: document.querySelectorAll(".slide-notes").length,
       slideText: document.querySelector(".slide.active h1").textContent,
-      notesText: document.querySelector(".slide.active .slide-notes").innerText,
     };
   });
 }
 
-test("slides, inline notes, and ad controls at both viewports", async () => {
+test("slides, analysis shortlist, and ad controls at both viewports", async () => {
   psql("DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'ubuntu') THEN CREATE ROLE ubuntu LOGIN SUPERUSER; END IF; END $$;");
   psql("DROP DATABASE IF EXISTS kmnotes_ui");
   psql("CREATE DATABASE kmnotes_ui OWNER ubuntu");
@@ -91,24 +87,105 @@ test("slides, inline notes, and ad controls at both viewports", async () => {
     });
     await bare.setViewport({ width: 1024, height: 554 });
     await bare.goto(origin, { waitUntil: "domcontentloaded" });
+    await bare.waitForSelector("#password");
+    assert.equal(await bare.$("#s01-axis"), null);
+    await bare.type("#password", password);
+    await Promise.all([
+      bare.waitForNavigation({ waitUntil: "domcontentloaded" }),
+      bare.click("#login-form button"),
+    ]);
     const fallback = await bare.$eval("#s01-axis", (node) => getComputedStyle(node).display);
     assert.equal(fallback, "flex");
     assert.match(await bare.$eval("#s01-axis h1", (node) => node.textContent), /ข้อความแอด/);
     await bare.close();
 
     const page = await browser.newPage();
-    await page.setViewport({ width: 1024, height: 554 });
+    await page.setViewport({ width: 1366, height: 900 });
     await page.goto(origin, { waitUntil: "networkidle0" });
     await page.waitForSelector("#deck[data-hydrated='1']");
+    await page.waitForSelector(".month-row");
+    const books = await page.$$eval(".month-name", (nodes) => nodes.map((node) => node.textContent));
+    assert.deepEqual(books, ["ถือไพ่เหนือกว่า", "ออฟฟิศนี้เฮงซวย", "Survival Guide", "กับดักความรู้สึกผิด"]);
+    assert.match(await page.$eval("#asof", (node) => node.textContent), /7 พ\.ย\. 2569/);
+    const overviewFit = await page.evaluate(() => {
+      const names = [...document.querySelectorAll(".month-name")].map((node) => node.getBoundingClientRect());
+      return {
+        names: names.map((box) => box.bottom),
+        height: window.innerHeight,
+        notes: document.querySelectorAll(".slide-notes").length,
+      };
+    });
+    assert.equal(overviewFit.names.length, 4);
+    assert.equal(overviewFit.notes, 0);
+    assert.ok(overviewFit.names.every((bottom) => bottom > 0 && bottom < overviewFit.height));
+    await page.screenshot({ path: "/workspace/docs/progress/overview-1366.png" });
+    await page.screenshot({ path: "/opt/cursor/artifacts/overview-1366.png" });
+    await page.setViewport({ width: 1024, height: 900 });
+    await page.screenshot({ path: "/workspace/docs/progress/overview-1024.png" });
+    await page.screenshot({ path: "/opt/cursor/artifacts/overview-1024.png" });
+
+    await page.setViewport({ width: 1366, height: 900 });
+    await page.click("[data-book='Coworkers']");
+    await page.waitForSelector(".scan-row");
+    await page.evaluate(() => { document.querySelector("#web-main").scrollTop = 0; });
+    const bookFit = await page.evaluate(() => {
+      const rows = [...document.querySelectorAll(".scan-row")].slice(0, 3).map((node) => node.getBoundingClientRect());
+      return {
+        count: document.querySelectorAll(".scan-row").length,
+        heights: rows.map((box) => box.height),
+        tops: rows.map((box) => box.top),
+        height: window.innerHeight,
+        notes: document.querySelectorAll(".slide-notes").length,
+      };
+    });
+    assert.ok(bookFit.count >= 2);
+    assert.equal(bookFit.notes, 0);
+    assert.ok(bookFit.heights.every((height) => height > 20 && height < 88));
+    assert.ok(bookFit.tops.every((top) => top > 0 && top < bookFit.height));
+    await page.screenshot({ path: "/workspace/docs/progress/book-1366.png" });
+    await page.screenshot({ path: "/opt/cursor/artifacts/book-1366.png" });
+    await page.setViewport({ width: 1024, height: 900 });
+    await page.evaluate(() => { document.querySelector("#web-main").scrollTop = 0; });
+    await page.screenshot({ path: "/workspace/docs/progress/book-1024.png" });
+    await page.screenshot({ path: "/opt/cursor/artifacts/book-1024.png" });
+
+    await page.setViewport({ width: 1366, height: 900 });
+    await page.click("[data-book='Coworkers']");
+    await page.waitForSelector(".scan-row .pick-btn");
+    const pickedName = await page.$eval(".scan-row .ad-name", (node) => node.textContent);
+    assert.equal(await page.$eval("#report-period", (node) => node.value), "oct");
+    await page.click(".scan-row .pick-btn");
+    await page.waitForFunction(() => document.querySelector(".scan-row .pick-btn").textContent === "เลือกแล้ว");
+    assert.equal(await page.$eval("#report-period", (node) => node.value), "oct");
+    assert.equal(await page.$eval("[data-book='Coworkers'].on", (node) => node.dataset.book), "Coworkers");
+    await page.click("[data-view='analysis']");
+    await page.waitForSelector(".analysis-card");
+    assert.equal(await page.$(".slide-notes"), null);
+    assert.match(await page.$eval(".analysis-lead", (node) => node.textContent), /เลือกเอง/);
+    const cardText = await page.$eval(".analysis-card", (node) => node.innerText);
+    assert.ok(cardText.includes(pickedName));
+    assert.match(cardText, /ออฟฟิศนี้เฮงซวย/);
+    assert.match(cardText, /ต\.ค\. ทั้งเดือน/);
+    assert.equal(cardText.includes("แนะนำให้เลือก"), false);
+    await page.type(".analysis-note", marker);
+    await page.waitForFunction(() => document.querySelector(".analysis-status").textContent.includes("บันทึกแล้ว"));
+    await page.screenshot({ path: "/workspace/docs/progress/analysis-1366.png" });
+    await page.screenshot({ path: "/opt/cursor/artifacts/analysis-1366.png" });
+    await page.reload({ waitUntil: "networkidle0" });
+    await page.waitForSelector("#deck[data-hydrated='1']");
+    await page.click("[data-view='analysis']");
+    await page.waitForSelector(".analysis-note");
+    assert.match(await page.$eval(".analysis-note", (node) => node.value), new RegExp(marker));
+    assert.equal(await page.$eval("#report-period", (node) => node.value), "oct");
+
+    await page.setViewport({ width: 1024, height: 554 });
     await page.click("[data-view='present']");
     assert.equal(new URL(page.url()).hash, "");
     assert.equal(new URL(page.url()).search, "");
     let box = await fit(page);
+    assert.equal(box.noteCount, 0);
     assert.ok(box.stageBottom <= box.toolbarTop + 1, "toolbar covers the 1024 stage");
-    assert.ok(box.notesBottom <= box.toolbarTop + 1);
-    assert.ok(box.notesHeight > 40);
-    assert.match(box.notesText, /เข้าสู่ระบบเพื่อดูและแก้บันทึก/);
-    assert.equal(box.notesText.includes(marker), false);
+    assert.ok(box.contentBottom <= box.stageBottom + 1);
     await page.screenshot({ path: "/workspace/docs/progress/slide1-1024.png" });
     await page.screenshot({ path: "/opt/cursor/artifacts/slide1-1024.png" });
 
@@ -121,8 +198,8 @@ test("slides, inline notes, and ad controls at both viewports", async () => {
     for (let step = 0; step < 11; step += 1) {
       await page.keyboard.press("ArrowRight");
       box = await fit(page);
-      assert.ok(box.notesHeight > 30, "notes missing on slide " + (step + 2));
-      assert.ok(box.notesBottom <= box.toolbarTop + 1);
+      assert.equal(box.noteCount, 0, "note footer on slide " + (step + 2));
+      assert.ok(box.stageBottom <= box.toolbarTop + 1);
     }
     assert.match(box.slideText, /รอบนี้ข้อความแอด/);
     await page.screenshot({ path: "/workspace/docs/progress/slide12-synthesis.png" });
@@ -148,46 +225,35 @@ test("slides, inline notes, and ad controls at both viewports", async () => {
     await page.screenshot({ path: "/opt/cursor/artifacts/ads-1366.png" });
 
     await page.select("#jump", "0");
-    await page.type(".slide.active input[type=password]", password);
-    await page.click(".slide.active .notes-login button");
-    await page.waitForSelector(".slide.active textarea");
-    await page.type(".slide.active textarea", marker);
-    await page.waitForFunction(() => document.querySelector(".slide.active .notes-status").textContent.includes("บันทึกแล้ว"));
-    assert.match(await page.$eval(".slide.active textarea", (node) => node.value), new RegExp(marker));
+    assert.equal(await page.$(".slide.active textarea"), null);
     const context = await browser.createBrowserContext();
     const fresh = await context.newPage();
     await fresh.setViewport({ width: 1366, height: 768 });
     await fresh.goto(origin, { waitUntil: "networkidle0" });
-    await fresh.waitForSelector("#deck[data-hydrated='1']");
-    await fresh.click("[data-view='present']");
+    await fresh.waitForSelector("#password");
     assert.equal((await fresh.content()).includes(marker), false);
-    await fresh.type(".slide.active input[type=password]", password);
-    await fresh.click(".slide.active .notes-login button");
+    await fresh.type("#password", password);
+    await Promise.all([
+      fresh.waitForNavigation({ waitUntil: "networkidle0" }),
+      fresh.click("#login-form button"),
+    ]);
+    await fresh.waitForSelector("#deck[data-hydrated='1']");
+    assert.equal(await fresh.$(".slide-notes"), null);
+    await fresh.click("[data-view='analysis']");
     await fresh.waitForFunction((text) => {
-      const area = document.querySelector(".slide.active textarea");
+      const area = document.querySelector(".analysis-note");
       return Boolean(area && area.value.includes(text));
     }, {}, marker);
     await context.close();
     await page.keyboard.press("ArrowRight");
-    assert.match(await page.$eval("#count", (node) => node.textContent), /^1 \/ 12/);
-    await page.evaluate(() => {
-      const area = document.querySelector(".slide.active textarea");
-      area.value = "บรรทัดบันทึก\n".repeat(30);
-      area.dispatchEvent(new Event("input", { bubbles: true }));
-    });
+    assert.match(await page.$eval("#count", (node) => node.textContent), /^2 \/ 12/);
     await page.setViewport({ width: 1024, height: 554 });
     box = await fit(page);
-    assert.ok(box.stageBottom <= box.toolbarTop + 1, "long note pushes into the toolbar");
-    assert.ok(box.contentBottom <= box.notesTop + 1);
-    await page.screenshot({ path: "/workspace/docs/progress/notes-inline-1024.png" });
-    await page.screenshot({ path: "/opt/cursor/artifacts/notes-inline-1024.png" });
-
-    await page.evaluate(() => {
-      const button = [...document.querySelectorAll(".slide.active .notes-tools button")].find((node) => node.textContent === "ออกจากระบบ");
-      button.click();
-    });
-    await page.waitForFunction(() => document.querySelector(".slide.active .notes-guest"));
-    assert.equal((await page.$eval(".slide.active .slide-notes", (node) => node.innerText)).includes(marker), false);
+    assert.equal(box.noteCount, 0);
+    assert.ok(box.stageBottom <= box.toolbarTop + 1, "stage stays above the toolbar");
+    await page.click("#logout");
+    await page.waitForSelector("#password");
+    assert.equal((await page.content()).includes(marker), false);
   } finally {
     await browser.close();
     await stop(child);

@@ -1,7 +1,9 @@
+import { analysisItemId } from "/shared/analysis.js";
 import { rates } from "/shared/metrics.js";
 import { comparisonRows, pageOf } from "/shared/comparison.js";
 import { FROZEN_PERFORMANCE } from "/shared/cutoff.js";
-import { STATUS_CHECKED_LABEL, contentBadge, statusBadge } from "/shared/status-labels.js";
+import { changePct, metricTone, sameLengthBase } from "/shared/conditional.js";
+import { contentBadge } from "/shared/status-labels.js";
 
 const BOOKS = [
   ["Mind", "ถือไพ่เหนือกว่า"],
@@ -34,9 +36,7 @@ function roasText(totals) {
   return value == null ? "—" : value.toFixed(2);
 }
 function mom(current, previous) {
-  if (!previous) return "ใหม่/ไม่มีฐาน";
-  const pct = ((current - previous) / previous) * 100;
-  return (pct > 0 ? "+" : "") + pct.toFixed(1) + "%";
+  return changePct(current, previous).text;
 }
 function reportLabel(id) {
   return { sep: "ก.ย. ทั้งเดือน", oct: "ต.ค. ทั้งเดือน", oct1_7: "1–7 ต.ค.", nov1_7: FROZEN_PERFORMANCE.novMtdLabel }[id] || id;
@@ -57,8 +57,8 @@ function banner() {
 
 export function renderWeb(root, opts) {
   root.replaceChildren();
-  root.append(banner());
-  if (opts.view === "book") renderBook(root, opts);
+  if (opts.view === "analysis") renderAnalysis(root, opts);
+  else if (opts.view === "book") renderBook(root, opts);
   else renderOverview(root, opts);
 }
 
@@ -97,9 +97,6 @@ function mini(totals) {
 
 function renderBook(root, opts) {
   const name = BOOKS.find((item) => item[0] === opts.book)?.[1] || opts.book;
-  const sep = opts.deck.bookTotals.sep[opts.book];
-  const oct = opts.deck.bookTotals.oct[opts.book];
-  root.append(el("p", "web-sub", `${name} · ก.ย. ROAS ${roasText(sep)} · ต.ค. ROAS ${roasText(oct)} · MoM รายได้ ${mom(oct.revenue, sep.revenue)} · ${FROZEN_PERFORMANCE.novMtdLabel} ROAS ${roasText(opts.deck.bookTotals.nov1_7[opts.book])}`));
   root.append(bookTable(name, opts.book, opts, opts.book));
 }
 
@@ -118,16 +115,19 @@ function bookTable(name, book, opts, pageKey) {
   const paged = pageOf(rows, opts.pages?.[pageKey] || 0, PAGE);
   const head = el("header", "scan-top");
   const titles = el("div");
-  const pill = el("p", "ref-pill");
-  pill.append(el("i"), document.createTextNode(`${name} · ตารางเทียบ`));
-  titles.append(pill);
   titles.append(el("h2", "", `${name} · ${reportLabel(opts.reportId)}`));
   titles.append(el("div", "ref-rule"));
-  head.append(titles, el("p", "ref-page", `${paged.page + 1} / ${paged.pages}`));
+  const aside = el("div", "scan-aside");
+  aside.append(el("p", "ref-page", `${paged.page + 1} / ${paged.pages}`));
+  aside.append(legend());
+  head.append(titles, aside);
   wrap.append(head);
+  const compare = compareLine(opts, book);
+  if (compare) wrap.append(compare);
   wrap.append(totalRow(totals, baseline, reportLabel(opts.reportId)));
   wrap.append(columnHead(baseline));
-  rows.length ? paged.slice.forEach((ad, index) => wrap.append(scanRow(ad, paged.page * PAGE + index + 1, baseline, opts.status.ads_by_id[ad.adId], opts.reportId))) : wrap.append(el("p", "web-sub", "ไม่มีแอดในช่วงนี้"));
+  const bookRate = rates(totals);
+  rows.length ? paged.slice.forEach((ad, index) => wrap.append(scanRow(ad, paged.page * PAGE + index + 1, baseline, bookRate, opts.status.ads_by_id[ad.adId], opts))) : wrap.append(el("p", "web-sub", "ไม่มีแอดในช่วงนี้"));
   const pager = el("div", "scan-pager");
   const prev = el("button", "", "ก่อนหน้า");
   prev.type = "button";
@@ -172,7 +172,7 @@ function columnHead(baseline) {
   return head;
 }
 
-function scanRow(ad, index, baseline, record) {
+function scanRow(ad, index, baseline, bookRate, record, opts) {
   const rate = rates(ad);
   const row = el("article", "scan-row scan-cols");
   row.append(el("span", "scan-rank", String(index)));
@@ -190,13 +190,140 @@ function scanRow(ad, index, baseline, record) {
   row.append(roasCell(rate.roas, baseline));
   row.append(el("span", "scan-num", baht(ad.revenue)));
   row.append(el("span", "scan-num", num(ad.chats)));
-  row.append(el("span", "scan-num", rate.costPerMsg == null ? "—" : baht(rate.costPerMsg)));
-  row.append(el("span", "scan-num", rate.cpm == null ? "—" : baht(rate.cpm)));
+  row.append(coloredNum(rate.costPerMsg == null ? "—" : baht(rate.costPerMsg), metricTone("costPerMsg", rate.costPerMsg, bookRate.costPerMsg)));
+  row.append(coloredNum(rate.cpm == null ? "—" : baht(rate.cpm), metricTone("cpm", rate.cpm, bookRate.cpm)));
   row.append(el("span", "scan-num", num(ad.purchases)));
   row.append(el("span", "scan-num", rate.cvrProxy == null ? "—" : (rate.cvrProxy * 100).toFixed(1) + "%"));
   row.append(el("span", "scan-num", rate.aov == null ? "—" : baht(rate.aov)));
-  row.append(sourceLink(ad));
+  const actions = el("span", "scan-actions");
+  actions.append(sourceLink(ad), pickButton(ad, opts));
+  row.append(actions);
   return row;
+}
+
+function pickButton(ad, opts) {
+  const itemId = analysisItemId(opts.reportId, ad.adId);
+  const picked = Boolean(opts.picks && opts.picks[itemId]);
+  const button = el("button", "pick-btn" + (picked ? " on" : ""), picked ? "เลือกแล้ว" : "เลือก");
+  button.type = "button";
+  button.dataset.pick = itemId;
+  button.title = "เลือกข้อความนี้ไว้หน้าวิเคราะห์ต่อยอด เป็นการเลือกเอง ไม่ใช่คำแนะนำ";
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    opts.onPick(ad, opts.reportId);
+  });
+  return button;
+}
+
+const PERIOD_LABEL = { sep: "ก.ย. ทั้งเดือน", oct: "ต.ค. ทั้งเดือน", oct1_7: "1–7 ต.ค.", nov1_7: "1–7 พ.ย." };
+const BOOK_LABEL = Object.fromEntries(BOOKS);
+
+function renderAnalysis(root, opts) {
+  const page = el("section", "analysis-page");
+  page.append(el("h2", "web-title", "วิเคราะห์ต่อยอด"));
+  page.append(el("p", "analysis-lead", "รายการที่เลือกเองจากตาราง ไม่ได้จัดอันดับให้ และไม่ได้แนะนำให้เลือกข้อความใด"));
+  const picks = Object.values(opts.picks || {});
+  if (!picks.length) {
+    page.append(el("p", "analysis-empty", "ยังไม่ได้เลือกข้อความ กลับไปที่ตารางแล้วกด เลือก"));
+  }
+  for (const item of picks) {
+    page.append(analysisCard(item, opts));
+  }
+  const legacy = (opts.legacyNotes || []).filter((note) => note.text && note.text.trim());
+  if (legacy.length) {
+    const old = el("details", "legacy-notes");
+    old.append(el("summary", "", "บันทึกเดิมที่เคยอยู่บนสไลด์"));
+    old.append(el("p", "analysis-lead", "เก็บบันทึกชุดเดิมไว้ ไม่ได้ลบ และไม่ได้เอาไปปนกับรายการที่เลือก"));
+    for (const note of legacy) {
+      const block = el("article", "legacy-note");
+      block.append(el("strong", "", note.id));
+      block.append(el("p", "", note.text));
+      old.append(block);
+    }
+    page.append(old);
+  }
+  root.append(page);
+}
+
+function analysisCard(item, opts) {
+  const ad = (opts.deck.ads || []).find((row) => row.adId === item.adId && row.period === item.reportPeriod);
+  const card = el("article", "analysis-card");
+  card.dataset.analysis = item.itemId;
+  const media = ad ? thumb(ad) : el("div", "scan-thumb scan-ph", "ไม่มีภาพ");
+  const body = el("div", "analysis-body");
+  const title = el("h3", "ad-name", ad ? ad.adName : item.adId);
+  title.title = ad ? ad.adName : item.adId;
+  body.append(title);
+  body.append(el("p", "analysis-context", [
+    BOOK_LABEL[item.book] || item.book,
+    item.contentMonthLabel || "ไม่ระบุเดือน Content",
+    "ผลลัพธ์ช่วง " + (PERIOD_LABEL[item.reportPeriod] || item.reportPeriod),
+  ].join(" · ")));
+  if (ad) body.append(metricLine(ad));
+  const area = document.createElement("textarea");
+  area.className = "analysis-note";
+  area.maxLength = 20000;
+  area.placeholder = "วิเคราะห์ต่อยอดจากข้อความนี้";
+  area.setAttribute("aria-label", "บันทึกวิเคราะห์");
+  area.value = Object.prototype.hasOwnProperty.call(opts.drafts || {}, item.itemId) ? opts.drafts[item.itemId] : (item.text || "");
+  const status = el("p", "analysis-status", item.text ? "บันทึกแล้ว" : "ยังไม่มีบันทึกวิเคราะห์");
+  status.dataset.analysisStatus = item.itemId;
+  area.addEventListener("input", () => {
+    opts.onDraft(item.itemId, area.value);
+    status.textContent = "มีการแก้ไขที่ยังไม่บันทึก";
+    clearTimeout(timers[item.itemId]);
+    timers[item.itemId] = setTimeout(() => opts.onSave(item.itemId, area.value), 700);
+  });
+  const remove = el("button", "analysis-remove", "เอาออกจากรายการ");
+  remove.type = "button";
+  remove.addEventListener("click", () => opts.onRemove(item.itemId));
+  body.append(area, status, remove);
+  card.append(media, body);
+  return card;
+}
+
+const timers = {};
+
+function metricLine(ad) {
+  const rate = rates(ad);
+  const line = el("p", "analysis-metrics");
+  const bits = [
+    ["Spend", baht(ad.spend)],
+    ["รายได้ Meta", baht(ad.revenue)],
+    ["ROAS", rate.roas == null ? "—" : rate.roas.toFixed(2)],
+    ["แชท", num(ad.chats)],
+    ["บาท/แชท", rate.costPerMsg == null ? "—" : baht(rate.costPerMsg)],
+    ["CPM", rate.cpm == null ? "—" : baht(rate.cpm)],
+    ["ซื้อ", num(ad.purchases)],
+    ["ซื้อ÷แชท", rate.cvrProxy == null ? "—" : (rate.cvrProxy * 100).toFixed(1) + "%"],
+    ["AOV", rate.aov == null ? "—" : baht(rate.aov)],
+  ];
+  for (const [label, value] of bits) {
+    const bit = el("span", "", value);
+    bit.prepend(el("small", "", label));
+    line.append(bit);
+  }
+  return line;
+}
+
+function coloredNum(text, tone) {
+  return el("span", "scan-num" + (tone === "neutral" ? "" : " tone-" + tone), text);
+}
+
+function legend() {
+  const box = el("details", "legend");
+  box.append(el("summary", "", "สีเทียบเล่มนี้"));
+  box.append(el("p", "", "เทียบกับเส้นของเล่มนี้ในช่วงที่เลือกเท่านั้น ไม่ใช่เกณฑ์งบ ROAS สูงกว่าเส้นเป็นเขียว บาทต่อแชทและ CPM ต่ำกว่าเส้นเป็นเขียว ฝั่งตรงข้ามเป็นน้ำเงิน หารไม่ได้ขึ้น — และไม่มีสี"));
+  return box;
+}
+
+function compareLine(opts, book) {
+  const baseId = sameLengthBase(opts.reportId);
+  if (!baseId) return null;
+  const current = opts.deck.bookTotals[opts.reportId][book];
+  const previous = opts.deck.bookTotals[baseId][book];
+  const line = el("p", "compare-line", `รายได้เทียบ ${reportLabel(baseId)} ${mom(current.revenue, previous.revenue)}`);
+  return line;
 }
 
 function openDetail(ad) {
@@ -250,10 +377,11 @@ function sourceLink(ad) {
 }
 
 function roasCell(value, baseline) {
+  const tone = metricTone("roas", value, baseline);
   const cell = el("div", "scan-roas");
   const track = el("div", "scan-track");
-  const scale = Math.max(3, baseline || 0, value || 0);
-  const fill = el("i", value != null && baseline != null && value < baseline ? "under" : "over");
+  const scale = Math.max(3, baseline || 0, value || 0, 0.01);
+  const fill = el("i", tone === "worse" ? "under" : tone === "better" ? "over" : "neutral");
   fill.style.width = (value == null ? 0 : Math.min(100, (value / scale) * 100)) + "%";
   track.append(fill);
   if (baseline != null) {
@@ -261,6 +389,6 @@ function roasCell(value, baseline) {
     mark.style.left = Math.min(100, (baseline / scale) * 100) + "%";
     track.append(mark);
   }
-  cell.append(track, el("strong", value != null && baseline != null && value < baseline ? "under" : "over", value == null ? "—" : value.toFixed(2)));
+  cell.append(track, el("strong", tone === "neutral" ? "" : tone, value == null ? "—" : value.toFixed(2)));
   return cell;
 }

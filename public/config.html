@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ยังไม่ได้ตั้งค่า — วงคุย Key Message</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="gate">
+  <main class="gate-card">
+    <h1>ยังเปิดตารางไม่ได้</h1>
+    <p>เว็บสาธารณะนี้ต้องเข้าสู่ระบบก่อนเห็นตาราง ภาพ และบันทึก ตอนนี้ฐานข้อมูลยังไม่พร้อมหรือยังไม่มีรหัสเปิดครั้งแรก</p>
+    <p>ตั้งบนโปรเจกต์ creator-review-slides เท่านั้น ไม่ใช่ฐาน KPI</p>
+    <ul>
+      <li><strong>DATABASE_URL</strong> — สายเชื่อมฐาน prod ของโปรเจกต์นี้ จากส่วนฐานข้อมูลบนแดชบอร์ด วางใน Secrets</li>
+      <li><strong>BOOTSTRAP_PASSWORD</strong> — รหัสที่เจ้าของตั้งเอง ยาวอย่างน้อย 10 ตัว ใช้เปิดครั้งแรกเท่านั้น</li>
+    </ul>
+    <p>หลังแอปรันครั้งแรก เซิร์ฟเวอร์สร้างรหัสแฮชและกุญแจเซสชันเก็บในฐานของโปรเจกต์นี้ ไม่ต้องรันคำสั่งแฮช และไม่ต้องตั้ง SESSION_SECRET หรือ TRUST_PROXY</p>
+    <p>รหัสใน BOOTSTRAP_PASSWORD คือรหัสเข้าเว็บ หลังเข้าได้แล้วลบคีย์นี้ออกจาก Secrets ได้ ถ้ายังทิ้งไว้ ระบบไม่เปลี่ยนรหัสที่มีอยู่แล้ว</p>
+  </main>
+</body>
+</html>

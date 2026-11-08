@@ -616,15 +616,30 @@ dialog a { color: #241e1c; }
 #webnav {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 10px;
+  gap: 6px 8px;
   align-items: center;
-  padding: 8px 14px;
+  padding: 6px 12px;
   background: #fff;
   color: #1b2744;
   border-bottom: 1px solid #e6ebf5;
-  position: relative;
-  z-index: 5;
+  position: sticky;
+  top: 0;
+  z-index: 6;
 }
+#webnav details.more { font-size: 13px; }
+#webnav details.more summary { cursor: pointer; color: #31456f; }
+#webnav details.more[open] { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.asof { font-size: 12px; background: #e7eef8; color: #1b2744; border-radius: 999px; padding: 4px 8px; }
+.status-asof { background: #fff1e6; }
+.legend { font-size: 12px; color: #60708f; }
+.legend summary { cursor: pointer; }
+.legend p { margin: 4px 0 0; max-width: 42em; }
+.compare-line { margin: 0 0 6px; color: #60708f; font-size: 13px; }
+.tone-better { color: #1fa85a; }
+.tone-worse { color: #5c6bc0; }
+.scan-track i.neutral { background: #d5dbe8; }
+#web-stage:fullscreen { background: #f4f7fb; overflow: auto; padding: 12px 16px 20px; }
+#web-stage:fullscreen .slide-notes { display: block; }
 #webnav strong { font-size: 16px; }
 #webnav nav { display: flex; flex-wrap: wrap; gap: 6px; }
 #webnav button, #webnav select {
@@ -679,7 +694,7 @@ dialog a { color: #241e1c; }
 .scan-sheet { overflow-x: auto; }
 .scan-cols {
   display: grid;
-  grid-template-columns: 26px 36px minmax(280px, 1.7fr) 76px minmax(108px, 0.85fr) 78px 46px 68px 50px 42px 64px 64px 36px;
+  grid-template-columns: 26px 36px minmax(240px, 1.7fr) 76px minmax(108px, 0.85fr) 78px 46px 68px 50px 42px 64px 64px 92px;
   column-gap: 8px;
   align-items: center;
   min-width: 1180px;
@@ -745,10 +760,34 @@ dialog a { color: #241e1c; }
 .scan-roas strong.over { color: #1fa85a; }
 .scan-roas strong.under { color: #5c6bc0; }
 .scan-open { color: #3b82f6; font-weight: 700; font-size: 13px; text-decoration: none; }
+.scan-actions { display: flex; gap: 6px; align-items: center; justify-content: flex-end; }
+.pick-btn { border: 0; background: #fff1e6; color: #1b2744; border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 700; }
+.pick-btn.on { background: #e5f6ec; color: #1f7a4d; }
+.analysis-lead, .analysis-empty, .analysis-context { color: #60708f; font-size: 14px; margin: 0 0 8px; }
+.analysis-card { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 10px; background: #fff; border-radius: 14px; padding: 10px 12px; margin: 0 0 10px; }
+.analysis-card h3 { margin: 0; font-size: 16px; }
+.analysis-metrics { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 0 0 8px; font-size: 13px; }
+.analysis-metrics small { display: block; color: #8b95a8; font-size: 11px; }
+.analysis-note { width: 100%; min-height: 72px; border: 1px solid #e6ebf5; border-radius: 10px; padding: 8px; background: #fff; }
+.analysis-status { margin: 6px 0; font-size: 13px; color: #60708f; }
+.analysis-remove { border: 0; background: #f4f7fb; border-radius: 999px; padding: 6px 10px; }
+.legacy-notes { margin-top: 16px; color: #60708f; }
+.legacy-note { background: #fff; border-radius: 12px; padding: 8px 12px; margin-top: 8px; }
 .scan-num { font-size: 13px; }
 .scan-pager { display: flex; gap: 8px; align-items: center; color: #8b95a8; font-size: 13px; }
 .scan-pager button { border: 0; background: #fff; border-radius: 999px; padding: 6px 12px; color: #1b2744; }
 .ad-web { display: flex; flex-direction: column; gap: 8px; }
 .ad-web .ref-ad { margin: 0; }
 body.mode-web #viewport, body.mode-web #toolbar { display: none; }
+body.mode-web #web-panel { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; padding-bottom: 8px; }
+#web-stage { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+#web-main { flex: 1; overflow: auto; min-height: 0; padding: 8px 16px 0; }
+#web-panel .slide-notes { flex: none; margin: 6px 16px 0; }
 body.mode-present #web-panel { display: none; }
+body.gate { display: grid; place-items: center; background: #f4f7fb; color: #1b2744; }
+.gate-card { width: min(460px, calc(100% - 32px)); background: #fff; border-radius: 16px; padding: 24px; }
+.gate-card h1 { margin: 0 0 8px; font-size: 22px; }
+.gate-card p, .gate-card li { color: #31456f; line-height: 1.45; }
+.gate-card form { display: flex; flex-direction: column; gap: 8px; }
+.gate-card input { border: 1px solid #d5dbe8; border-radius: 10px; padding: 10px 12px; background: #fff; }
+.gate-card button { border: 0; background: #1b2744; color: #fff; border-radius: 999px; padding: 10px 14px; }
