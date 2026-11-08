@@ -97,8 +97,27 @@ test("November overview and Mind book stay on the selected period", async () => 
       assert.ok(headers.some((text) => text === label || text.startsWith(label + " ")), label);
     }
     assert.equal(headers.some((label) => /บาท\/แชท|ซื้อ÷แชท|รายได้ Meta/.test(label)), false);
-    const judged = await page.$$eval(".cell-better, .cell-worse", (nodes) => nodes.length);
+    const judged = await page.$$eval(".scan-row .cell-better, .scan-row .cell-worse", (nodes) => nodes.length);
     assert.ok(judged > 0);
+    const ink = await page.$$eval(".scan-row [data-metric='costPerMsg'], .scan-row [data-metric='cpm'], .scan-row [data-metric='cvrProxy'], .scan-row [data-metric='aov']", (nodes) => nodes.map((node) => {
+      const style = getComputedStyle(node);
+      return {
+        text: node.textContent,
+        color: style.color,
+        background: style.backgroundColor,
+        whiteSpace: style.whiteSpace,
+      };
+    }));
+    assert.ok(ink.length >= 4);
+    for (const cell of ink) {
+      assert.equal(/▲|▼/.test(cell.text), false);
+      assert.ok(cell.background === "transparent" || cell.background === "rgba(0, 0, 0, 0)");
+      assert.equal(cell.whiteSpace, "nowrap");
+    }
+    const colored = ink.filter((cell) => cell.color === "rgb(11, 107, 56)" || cell.color === "rgb(159, 18, 57)");
+    assert.ok(colored.length > 0);
+    const tab = await page.$eval("[data-book='Mind']", (node) => getComputedStyle(node).backgroundColor);
+    assert.equal(tab, "rgb(217, 245, 228)");
     assert.equal(await page.$eval("[data-book='Mind']", (node) => node.getAttribute("aria-pressed")), "true");
     assert.equal(await page.$eval("#report-period", (node) => node.value), "nov1_7");
     const pages = await page.$eval(".ref-page", (node) => node.textContent);

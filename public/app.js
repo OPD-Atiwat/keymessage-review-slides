@@ -1,10 +1,10 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261108t98";
-import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261108t98";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261108t98";
-import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261108t98";
-import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261108t98";
-import { contentBadge } from "/shared/status-labels.js?v=20261108t98";
-import { renderWeb } from "/web.js?v=20261108t98";
+import { analysisItemId } from "/shared/analysis.js?v=20261108t99";
+import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261108t99";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261108t99";
+import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261108t99";
+import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261108t99";
+import { contentBadge } from "/shared/status-labels.js?v=20261108t99";
+import { renderWeb } from "/web.js?v=20261108t99";
 
 const BOOKS = [
   { id: "Mind", name: "ถือไพ่เหนือกว่า", cls: "mind" },
@@ -760,25 +760,20 @@ function toneTitle(tone) {
   return TONE_LABEL[tone] || TONE_LABEL.neutral;
 }
 
-function toneMark(tone) {
-  if (tone === "better") return "▲ ";
-  if (tone === "worse") return "▼ ";
-  return "";
-}
-
 function toneLegend() {
   const row = el("p", "tone-legend");
-  row.append(el("span", "cell-better", "▲ " + TONE_LABEL.better));
-  row.append(el("span", "cell-worse", "▼ " + TONE_LABEL.worse));
-  row.append(el("span", "cell-neutral", "— " + TONE_LABEL.neutral));
+  row.append(el("span", "cell-better", TONE_LABEL.better));
+  row.append(el("span", "cell-worse", TONE_LABEL.worse));
+  row.append(el("span", "cell-neutral", TONE_LABEL.neutral));
   return row;
 }
 
 function taggedCell(metric, text, tone) {
-  const node = el("b", "pnum cell-" + tone, toneMark(tone) + text);
+  const node = el("b", "pnum cell-" + tone, text);
   node.dataset.metric = metric;
   node.dataset.tone = tone;
   node.title = toneTitle(tone);
+  node.setAttribute("aria-label", text + " " + toneTitle(tone));
   return node;
 }
 
@@ -811,11 +806,10 @@ function presentAdRow(ad, index, bookRate) {
   row.append(name);
   row.append(taggedCell("spend", baht(ad.spend), "volume"));
   const roasTone = metricTone("roas", rate.roas, base.roas);
-  const roasWrap = el("div", "pcell cell-" + roasTone);
+  const roasWrap = el("div", "pcell");
   roasWrap.dataset.metric = "roas";
   roasWrap.dataset.tone = roasTone;
   roasWrap.title = toneTitle(roasTone);
-  if (roasTone === "better" || roasTone === "worse") roasWrap.append(el("span", "tone-mark", roasTone === "better" ? "▲" : "▼"));
   roasWrap.append(roasBar(rate.roas, base.roas));
   row.append(roasWrap);
   row.append(taggedCell("revenue", baht(ad.revenue), "volume"));

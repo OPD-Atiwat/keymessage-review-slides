@@ -1,10 +1,10 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261108t98";
-import { rates } from "/shared/metrics.js?v=20261108t98";
-import { comparisonRows, pageOf } from "/shared/comparison.js?v=20261108t98";
-import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261108t98";
-import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261108t98";
-import { contentBadge } from "/shared/status-labels.js?v=20261108t98";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261108t98";
+import { analysisItemId } from "/shared/analysis.js?v=20261108t99";
+import { rates } from "/shared/metrics.js?v=20261108t99";
+import { comparisonRows, pageOf } from "/shared/comparison.js?v=20261108t99";
+import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261108t99";
+import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261108t99";
+import { contentBadge } from "/shared/status-labels.js?v=20261108t99";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261108t99";
 
 const BOOKS = [
   ["Mind", "ถือไพ่เหนือกว่า"],
@@ -312,17 +312,13 @@ function metricLine(ad) {
   return line;
 }
 
-function toneMark(tone) {
-  if (tone === "better") return "▲ ";
-  if (tone === "worse") return "▼ ";
-  return "";
-}
-
 function coloredNum(metric, text, tone) {
-  const node = el("span", "scan-num cell-" + tone, toneMark(tone) + text);
+  const node = el("span", "scan-num cell-" + tone, text);
+  const label = TONE_LABEL[tone] || TONE_LABEL.neutral;
   node.dataset.metric = metric;
   node.dataset.tone = tone;
-  node.title = TONE_LABEL[tone] || TONE_LABEL.neutral;
+  node.title = label;
+  node.setAttribute("aria-label", text + " " + label);
   return node;
 }
 
@@ -332,9 +328,9 @@ function volumeNum(metric, text) {
 
 function legend() {
   const box = el("p", "tone-legend");
-  box.append(el("span", "cell-better", "▲ " + TONE_LABEL.better));
-  box.append(el("span", "cell-worse", "▼ " + TONE_LABEL.worse));
-  box.append(el("span", "cell-neutral", "— " + TONE_LABEL.neutral));
+  box.append(el("span", "cell-better", TONE_LABEL.better));
+  box.append(el("span", "cell-worse", TONE_LABEL.worse));
+  box.append(el("span", "cell-neutral", TONE_LABEL.neutral));
   return box;
 }
 
@@ -399,11 +395,9 @@ function sourceLink(ad) {
 
 function roasCell(value, baseline) {
   const tone = metricTone("roas", value, baseline);
-  const cell = el("div", "scan-roas cell-" + tone);
+  const cell = el("div", "scan-roas");
   cell.dataset.metric = "roas";
   cell.dataset.tone = tone;
-  cell.title = TONE_LABEL[tone] || TONE_LABEL.neutral;
-  if (tone === "better" || tone === "worse") cell.append(el("span", "tone-mark", tone === "better" ? "▲" : "▼"));
   const track = el("div", "scan-track");
   const scale = Math.max(3, baseline || 0, value || 0, 0.01);
   const fill = el("i", tone === "worse" ? "under" : tone === "better" ? "over" : "neutral");
@@ -414,6 +408,11 @@ function roasCell(value, baseline) {
     mark.style.left = Math.min(100, (baseline / scale) * 100) + "%";
     track.append(mark);
   }
-  cell.append(track, el("strong", tone === "neutral" ? "" : tone, value == null ? "—" : value.toFixed(2)));
+  const figure = value == null ? "—" : value.toFixed(2);
+  const number = el("strong", "cell-" + tone, figure);
+  const label = TONE_LABEL[tone] || TONE_LABEL.neutral;
+  number.title = label;
+  number.setAttribute("aria-label", figure + " " + label);
+  cell.append(track, number);
   return cell;
 }
