@@ -1,10 +1,11 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261108t99";
-import { rates } from "/shared/metrics.js?v=20261108t99";
-import { comparisonRows, pageOf } from "/shared/comparison.js?v=20261108t99";
-import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261108t99";
-import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261108t99";
-import { contentBadge } from "/shared/status-labels.js?v=20261108t99";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261108t99";
+import { analysisItemId } from "/shared/analysis.js?v=20261108t100";
+import { rates } from "/shared/metrics.js?v=20261108t100";
+import { comparisonRows, pageOf } from "/shared/comparison.js?v=20261108t100";
+import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261108t100";
+import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261108t100";
+import { contentBadge } from "/shared/status-labels.js?v=20261108t100";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261108t100";
+import { UNPUBLISHED_MONTHS, revenueTrend, roasTrend, totalsFor, visibleHistory } from "/shared/history.js?v=20261108t100";
 
 const BOOKS = [
   ["Mind", "ถือไพ่เหนือกว่า"],
@@ -64,23 +65,41 @@ export function renderWeb(root, opts) {
 }
 
 function renderOverview(root, opts) {
-  root.append(el("h2", "web-title", "ภาพรวมทั้งเดือน แยกเล่ม"));
-  const board = el("div", "month-board");
-  const head = el("div", "month-head");
-  ["เล่ม", "ก.ย. ทั้งเดือน", "ต.ค. ทั้งเดือน", "MoM รายได้", "1–7 พ.ย. ถึงวานนี้"].forEach((label) => head.append(el("span", "", label)));
+  const windowed = visibleHistory(opts.historyStart || 0);
+  root.append(el("h2", "web-title", "ภาพรวมรายเดือน"));
+  root.append(el("p", "history-wait", `${UNPUBLISHED_MONTHS[0]}–${UNPUBLISHED_MONTHS[UNPUBLISHED_MONTHS.length - 1]} ยังไม่แสดง จนกว่าจะมีชุดข้อมูลที่ยืนยัน`));
+  const nav = el("div", "history-nav");
+  const prev = el("button", "", "เดือนก่อน");
+  prev.type = "button";
+  prev.disabled = windowed.start === 0;
+  prev.addEventListener("click", () => opts.onHistory(windowed.start - 1));
+  const next = el("button", "", "เดือนถัดไป");
+  next.type = "button";
+  next.disabled = windowed.start >= windowed.max;
+  next.addEventListener("click", () => opts.onHistory(windowed.start + 1));
+  const first = windowed.items[0];
+  const last = windowed.items[windowed.items.length - 1];
+  nav.append(prev, el("span", "", first && last ? `${first.label} ถึง ${last.label} · ถึง 7 พ.ย.` : "ยังไม่มีเดือนที่ยืนยัน"), next);
+  root.append(nav);
+  const board = el("div", "history-board");
+  board.style.setProperty("--cols", String(windowed.items.length));
+  const head = el("div", "history-row history-head");
+  head.append(el("span", "", "เล่ม"));
+  for (const period of windowed.items) {
+    const title = el("span", "", period.short);
+    title.title = period.kind === "partial" ? `${period.label} ยังไม่ครบเดือน` : period.label;
+    head.append(title);
+  }
   board.append(head);
   for (const [id, name] of BOOKS) {
-    const sep = opts.deck.bookTotals.sep[id];
-    const oct = opts.deck.bookTotals.oct[id];
-    const nov = opts.deck.bookTotals.nov1_7[id];
-    const row = el("button", "month-row");
-    row.type = "button";
-    row.append(el("span", "month-name", name));
-    row.append(mini(sep));
-    row.append(mini(oct));
-    row.append(el("b", "", mom(oct.revenue, sep.revenue)));
-    row.append(mini(nov));
-    row.addEventListener("click", () => opts.onBook(id));
+    const row = el("div", "history-row");
+    const book = el("button", "history-book", name);
+    book.type = "button";
+    book.addEventListener("click", () => opts.onBook(id));
+    row.append(book);
+    for (const period of windowed.items) {
+      row.append(historyCell(opts.deck.bookTotals, period, id));
+    }
     board.append(row);
   }
   root.append(board);
@@ -89,10 +108,31 @@ function renderOverview(root, opts) {
   }
 }
 
-function mini(totals) {
-  const cell = el("div");
-  cell.append(el("b", "", roasText(totals)));
-  cell.append(el("span", "", `${baht(totals.spend)} → ${baht(totals.revenue)}`));
+function historyCell(bookTotals, period, bookId) {
+  const cell = el("div", "history-cell");
+  cell.dataset.bookHistory = bookId;
+  cell.dataset.period = period.id;
+  const totals = totalsFor(bookTotals, period.id, bookId);
+  const roas = roasTrend(bookTotals, period.id, bookId);
+  const revenue = revenueTrend(bookTotals, period.id, bookId);
+  const roasNode = el("b", "history-roas cell-" + roas.tone, roas.text);
+  roasNode.title = roas.basis;
+  roasNode.setAttribute("aria-label", `ROAS ${roas.text} ${roas.basis}`);
+  const basis = el("small", "history-basis", roas.short);
+  basis.title = roas.basis;
+  cell.append(el("small", "", "ROAS"), roasNode, basis);
+  if (!totals) {
+    cell.append(el("span", "history-pair", "Spend —"));
+    cell.append(el("span", "history-pair", "Revenue —"));
+  } else {
+    cell.append(el("span", "history-pair", `Spend ${baht(totals.spend)}`));
+    cell.append(el("span", "history-pair", `Revenue ${baht(totals.revenue)}`));
+  }
+  const change = el("span", "history-change cell-" + revenue.tone, revenue.text === "—" ? "—" : `รายได้ ${revenue.text}`);
+  change.title = revenue.basis;
+  change.setAttribute("aria-label", revenue.basis + " " + revenue.text);
+  cell.append(change);
+  if (period.kind === "partial") cell.append(el("small", "history-partial", "ยังไม่ครบเดือน"));
   return cell;
 }
 

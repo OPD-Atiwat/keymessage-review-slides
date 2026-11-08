@@ -83,7 +83,29 @@ test("November overview and Mind book stay on the selected period", async () => 
     assert.deepEqual(logout, []);
     assert.equal(await page.$eval("#report-period", (node) => node.value), "nov1_7");
     assert.equal(await page.$eval("[data-view='overview']", (node) => node.getAttribute("aria-pressed")), "true");
-    await page.waitForSelector(".month-row");
+    await page.waitForSelector(".history-cell");
+    assert.match(await page.$eval(".history-wait", (node) => node.textContent), /พ\.ค\. 2569/);
+    assert.equal(await page.$(".history-cell[data-period='may']"), null);
+    const octRoas = await page.$eval("[data-book-history='Mind'][data-period='oct'] .history-roas", (node) => {
+      const style = getComputedStyle(node);
+      return { text: node.textContent, tone: node.className, background: style.backgroundColor };
+    });
+    assert.equal(octRoas.text, "0.69");
+    assert.match(octRoas.tone, /cell-worse/);
+    assert.equal(/▲|▼/.test(octRoas.text), false);
+    assert.ok(octRoas.background === "transparent" || octRoas.background === "rgba(0, 0, 0, 0)");
+    const octPaint = await page.$eval("[data-book-history='Mind'][data-period='oct']", (node) => ({
+      roas: getComputedStyle(node.querySelector(".history-roas")).color,
+      change: getComputedStyle(node.querySelector(".history-change")).color,
+      spend: getComputedStyle(node.querySelector(".history-pair")).color,
+      basis: node.querySelector(".history-basis").textContent,
+    }));
+    assert.equal(octPaint.roas, "rgb(159, 18, 57)");
+    assert.equal(octPaint.change, "rgb(159, 18, 57)");
+    assert.equal(octPaint.spend, "rgb(27, 39, 68)");
+    assert.equal(octPaint.basis, "เทียบ ก.ย.");
+    assert.equal(await page.$eval("[data-book-history='Mind'][data-period='nov1_7'] .history-roas", (node) => node.textContent), "0.89");
+    assert.equal(await page.$eval("[data-book-history='Mind'][data-period='nov1_7'] .history-basis", (node) => node.textContent), "เทียบ 1–7 ต.ค.");
     await page.screenshot({ path: "/opt/cursor/artifacts/overview-nov-1366.png" });
     await page.screenshot({ path: "/workspace/docs/progress/overview-nov-1366.png" });
 
@@ -134,7 +156,7 @@ test("November overview and Mind book stay on the selected period", async () => 
     await page.waitForFunction(() => document.querySelector("h2").textContent.includes("1–7 พ.ย. 2569"));
     assert.equal((await page.$eval("h2", (node) => node.textContent)).includes("ต.ค. ทั้งเดือน"), false);
     await page.click("[data-view='overview']");
-    await page.waitForSelector(".month-row");
+    await page.waitForSelector(".history-cell");
     assert.equal(await page.$eval("#report-period", (node) => node.value), "nov1_7");
 
     await page.click("[data-book='Mind']");

@@ -1,10 +1,10 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261108t99";
-import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261108t99";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261108t99";
-import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261108t99";
-import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261108t99";
-import { contentBadge } from "/shared/status-labels.js?v=20261108t99";
-import { renderWeb } from "/web.js?v=20261108t99";
+import { analysisItemId } from "/shared/analysis.js?v=20261108t100";
+import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261108t100";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261108t100";
+import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261108t100";
+import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261108t100";
+import { contentBadge } from "/shared/status-labels.js?v=20261108t100";
+import { renderWeb } from "/web.js?v=20261108t100";
 
 const BOOKS = [
   { id: "Mind", name: "ถือไพ่เหนือกว่า", cls: "mind" },
@@ -38,13 +38,14 @@ let userMoved = false;
 const PERIOD_IDS = ["nov1_7", "oct1_7", "oct", "sep"];
 const adState = { period: "nov1_7", book: "", tag: "", sort: "revenue", q: "", page: 0, bodyKey: "", contentId: "all", statusId: "all" };
 let statusData = { ads_by_id: {}, summary: {} };
-let webView = { view: "overview", book: "Mind", pages: {} };
+let webView = { view: "overview", book: "Mind", pages: {}, historyStart: 0 };
 
 function setWebView(patch) {
   webView = {
     view: patch.view,
     book: patch.book === undefined ? webView.book : patch.book,
     pages: webView.pages,
+    historyStart: webView.historyStart || 0,
   };
 }
 const slidePages = {};
@@ -1368,6 +1369,11 @@ function showWeb() {
     contentId: adState.contentId,
     statusId: adState.statusId,
     pages: webView.pages,
+    historyStart: webView.historyStart || 0,
+    onHistory: (start) => {
+      webView.historyStart = start;
+      showWeb();
+    },
     picks: analysisState.items,
     drafts: analysisState.drafts,
     legacyNotes: Object.entries(noteState.notes || {}).map(([id, note]) => ({ id, text: note.text || "" })),

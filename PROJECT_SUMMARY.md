@@ -14,7 +14,7 @@ Notes are visible on the page, persisted in this project's PostgreSQL, and never
 
 ## What the system has
 
-- Web overview of all four books, one-row comparison tables (nine metrics), and a 12-slide presentation.
+- Web overview of monthly book totals, one-row comparison tables (nine metrics), and the วิเคราะห์ต่อยอด shortlist. There is no slide page and no logout button. Session logout stays on the server.
 - Compact sticky toolbar: reporting period plus “ข้อมูลถึง 7 พ.ย. 2569”. Content month, status, creator, and sort sit in a details control. Status timestamp appears only when status is relevant.
 - Same-length comparisons only (October vs September, and 1–7 Nov vs 1–7 Oct). Zero divisors render as a dash. A zero prior base renders “ใหม่/ไม่มีฐาน”. ROAS, cost per message, and CPM are colored only against that book's own selected-period baseline.
 - No note footer on the overview, book tables, or slides. One tab, วิเคราะห์ต่อยอด, holds the marketer's own shortlist and analysis notes.
@@ -56,3 +56,4 @@ The deck and stills are static files under `public/`. Client IP for rate limits 
 - 2026-11-08 12:10 Asia/Bangkok: owner replaced notes on every page with one วิเคราะห์ต่อยอด tab. Shortlist and analysis notes persist in this project's Postgres. Old slide notes are kept.
 - 2026-11-08 12:35: book-tab pagination crashed because replacing the view dropped `pages`. The page map is kept. Clicking next on ออฟฟิศ no longer throws. No database reset.
 - 2026-11-08: fresh open is the 16:9 November 1–7 presentation. Visible metric names are Spend, Revenue, ROAS, Messages, Cost per Message, CPM, Purchases, CVR, AOV. CVR is Purchases ÷ Messages, explained in the method note. One control bar in the presentation. Book totals are the baseline and are not ranked against each other.
+- 2026-11-08 15:57 Asia/Bangkok: the monthly overview shows verified September, October, and 1–7 November only. May–August 2026 are named as waiting and have no numbers. ROAS text compares a full month with the same book's previous verified full month, and 1–7 November with 1–7 October. That color is a trend, not profit and not ROAS 1. The revenue change percent uses the same base. Spend and Revenue amounts stay uncolored. November is not compared with full October.
