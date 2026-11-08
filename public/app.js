@@ -34,7 +34,7 @@ let index = 0;
 let userMoved = false;
 const adState = { period: "oct", book: "", tag: "", sort: "revenue", q: "", page: 0, bodyKey: "", contentId: "all", statusId: "all" };
 let statusData = { ads_by_id: {}, summary: {} };
-let webView = { view: "overview", book: "Mind" };
+let webView = { view: "overview", book: "Mind", pages: {} };
 const noteState = {
   configured: false,
   reason: "",
@@ -1066,11 +1066,16 @@ function showWeb() {
     reportId: adState.period,
     contentId: adState.contentId,
     statusId: adState.statusId,
+    pages: webView.pages,
     onBook: (id) => {
-      webView = { view: "book", book: id };
+      webView = { view: "book", book: id, pages: webView.pages };
       document.querySelectorAll("#webnav button[data-view]").forEach((button) => {
         button.classList.toggle("on", button.dataset.view === "book" && button.dataset.book === id);
       });
+      showWeb();
+    },
+    onPage: (key, page) => {
+      webView.pages[key] = page;
       showWeb();
     },
   });

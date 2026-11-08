@@ -1,6 +1,7 @@
 import { rates } from "/shared/metrics.js";
+import { comparisonRows, pageOf } from "/shared/comparison.js";
 import { FROZEN_PERFORMANCE } from "/shared/cutoff.js";
-import { STATUS_CHECKED_LABEL, contentBadge, isQuarantine, statusBadge } from "/shared/status-labels.js";
+import { STATUS_CHECKED_LABEL, contentBadge, statusBadge } from "/shared/status-labels.js";
 
 const BOOKS = [
   ["Mind", "ถือไพ่เหนือกว่า"],
@@ -8,6 +9,7 @@ const BOOKS = [
   ["SurvivalGuide", "Survival Guide"],
   ["Trap", "กับดักความรู้สึกผิด"],
 ];
+const PAGE = 6;
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -23,9 +25,12 @@ function num(value) {
   if (value == null || Number.isNaN(Number(value))) return "—";
   return Math.round(Number(value)).toLocaleString("en-US");
 }
+function roasOf(totals) {
+  if (!totals || !totals.spend) return null;
+  return rates(totals).roas;
+}
 function roasText(totals) {
-  if (!totals || !totals.spend) return "—";
-  const value = rates(totals).roas;
+  const value = roasOf(totals);
   return value == null ? "—" : value.toFixed(2);
 }
 function mom(current, previous) {
@@ -33,183 +38,229 @@ function mom(current, previous) {
   const pct = ((current - previous) / previous) * 100;
   return (pct > 0 ? "+" : "") + pct.toFixed(1) + "%";
 }
+function reportLabel(id) {
+  return { sep: "ก.ย. ทั้งเดือน", oct: "ต.ค. ทั้งเดือน", oct1_7: "1–7 ต.ค.", nov1_7: FROZEN_PERFORMANCE.novMtdLabel }[id] || id;
+}
+function opening(ad) {
+  const body = (ad.body || "").trim();
+  if (!body) return "";
+  return body.split(/\s+\/\s+/)[0];
+}
 
 function banner() {
   const box = el("section", "cutoff");
   box.append(el("strong", "", FROZEN_PERFORMANCE.throughLabel));
   box.append(el("span", "", "เวลาไทย · " + FROZEN_PERFORMANCE.novMtdLabel));
   box.append(el("span", "cutoff-status", STATUS_CHECKED_LABEL + " — สถานะบัญชีตอนตรวจ ไม่ใช่ผลลัพธ์วันที่ 7 และย้อนสถานะเมื่อวานไม่ได้"));
-  box.append(el("span", "", FROZEN_PERFORMANCE.rule));
   return box;
 }
 
-function periodCell(totals) {
+export function renderWeb(root, opts) {
+  root.replaceChildren();
+  root.append(banner());
+  if (opts.view === "book") renderBook(root, opts);
+  else renderOverview(root, opts);
+}
+
+function renderOverview(root, opts) {
+  root.append(el("h2", "web-title", "ภาพรวมทั้งเดือน แยกเล่ม"));
+  const board = el("div", "month-board");
+  const head = el("div", "month-head");
+  ["เล่ม", "ก.ย. ทั้งเดือน", "ต.ค. ทั้งเดือน", "MoM รายได้", "1–7 พ.ย. ถึงวานนี้"].forEach((label) => head.append(el("span", "", label)));
+  board.append(head);
+  for (const [id, name] of BOOKS) {
+    const sep = opts.deck.bookTotals.sep[id];
+    const oct = opts.deck.bookTotals.oct[id];
+    const nov = opts.deck.bookTotals.nov1_7[id];
+    const row = el("button", "month-row");
+    row.type = "button";
+    row.append(el("span", "month-name", name));
+    row.append(mini(sep));
+    row.append(mini(oct));
+    row.append(el("b", "", mom(oct.revenue, sep.revenue)));
+    row.append(mini(nov));
+    row.addEventListener("click", () => opts.onBook(id));
+    board.append(row);
+  }
+  root.append(board);
+  for (const [id, name] of BOOKS) {
+    root.append(bookTable(name, id, opts, `ov-${id}`));
+  }
+}
+
+function mini(totals) {
   const cell = el("div");
   cell.append(el("b", "", roasText(totals)));
   cell.append(el("span", "", `${baht(totals.spend)} → ${baht(totals.revenue)}`));
   return cell;
 }
 
-export function renderWeb(root, { deck, status, view, book, reportId, contentId, statusId, onBook }) {
-  root.replaceChildren();
-  root.append(banner());
-  if (view === "book") renderBook(root, { deck, status, book, reportId, contentId, statusId });
-  else if (view === "ads") renderAds(root, { deck, status, book, reportId, contentId, statusId });
-  else renderOverview(root, { deck, status, onBook });
+function renderBook(root, opts) {
+  const name = BOOKS.find((item) => item[0] === opts.book)?.[1] || opts.book;
+  const sep = opts.deck.bookTotals.sep[opts.book];
+  const oct = opts.deck.bookTotals.oct[opts.book];
+  root.append(el("p", "web-sub", `${name} · ก.ย. ROAS ${roasText(sep)} · ต.ค. ROAS ${roasText(oct)} · MoM รายได้ ${mom(oct.revenue, sep.revenue)} · ${FROZEN_PERFORMANCE.novMtdLabel} ROAS ${roasText(opts.deck.bookTotals.nov1_7[opts.book])}`));
+  root.append(bookTable(name, opts.book, opts, opts.book));
 }
 
-function renderOverview(root, { deck, status, onBook }) {
-  root.append(el("h2", "web-title", "ภาพรวมรายเดือน แยกเล่ม"));
-  root.append(el("p", "web-sub", "ก.ย. และ ต.ค. เป็นทั้งเดือน พ.ย. นับถึง 7 พ.ย. เท่านั้น"));
-  const table = el("div", "month-board");
-  const head = el("div", "month-head");
-  ["เล่ม", "ก.ย. ทั้งเดือน", "ต.ค. ทั้งเดือน", "MoM รายได้", "1–7 พ.ย. ถึงวานนี้"].forEach((label) => head.append(el("span", "", label)));
-  table.append(head);
-  for (const [id, name] of BOOKS) {
-    const sep = deck.bookTotals.sep[id];
-    const oct = deck.bookTotals.oct[id];
-    const nov = deck.bookTotals.nov1_7[id];
-    const row = el("button", "month-row");
-    row.type = "button";
-    row.append(el("span", "month-name", name));
-    row.append(periodCell(sep));
-    row.append(periodCell(oct));
-    row.append(el("b", "", mom(oct.revenue, sep.revenue)));
-    row.append(periodCell(nov));
-    row.addEventListener("click", () => onBook(id));
-    table.append(row);
-  }
-  root.append(table);
-  root.append(statusBlock(status));
+function bookTable(name, book, opts, pageKey) {
+  const wrap = el("section", "scan-sheet");
+  const totals = opts.deck.bookTotals[opts.reportId][book];
+  const baseline = roasOf(totals);
+  const rows = comparisonRows({
+    ads: opts.deck.ads,
+    statusById: opts.status.ads_by_id,
+    book,
+    period: opts.reportId,
+    contentId: opts.contentId,
+    statusId: opts.statusId,
+  });
+  const paged = pageOf(rows, opts.pages?.[pageKey] || 0, PAGE);
+  const head = el("header", "scan-top");
+  const titles = el("div");
+  const pill = el("p", "ref-pill");
+  pill.append(el("i"), document.createTextNode(`${name} · ตารางเทียบ`));
+  titles.append(pill);
+  titles.append(el("h2", "", `${name} · ${reportLabel(opts.reportId)}`));
+  titles.append(el("div", "ref-rule"));
+  head.append(titles, el("p", "ref-page", `${paged.page + 1} / ${paged.pages}`));
+  wrap.append(head);
+  wrap.append(totalRow(totals, baseline, reportLabel(opts.reportId)));
+  wrap.append(columnHead(baseline));
+  rows.length ? paged.slice.forEach((ad, index) => wrap.append(scanRow(ad, paged.page * PAGE + index + 1, baseline, opts.status.ads_by_id[ad.adId], opts.reportId))) : wrap.append(el("p", "web-sub", "ไม่มีแอดในช่วงนี้"));
+  const pager = el("div", "scan-pager");
+  const prev = el("button", "", "ก่อนหน้า");
+  prev.type = "button";
+  prev.disabled = paged.page === 0;
+  prev.addEventListener("click", () => opts.onPage(pageKey, paged.page - 1));
+  const next = el("button", "", "ถัดไป");
+  next.type = "button";
+  next.disabled = paged.page >= paged.pages - 1;
+  next.addEventListener("click", () => opts.onPage(pageKey, paged.page + 1));
+  pager.append(prev, el("span", "", `${rows.length} แอด · ไม่ได้ยุบแอดที่ใช้ข้อความเดียวกัน`), next);
+  wrap.append(pager);
+  return wrap;
 }
 
-function statusBlock(status) {
-  const box = el("section", "status-block");
-  box.append(el("h2", "web-title", "สถานะบัญชี ณ ตอนตรวจ 8 พ.ย. 11:39"));
-  box.append(el("p", "web-sub", "เปิดใช้งานหมายถึงสถานะ ACTIVE ตอนตรวจ ไม่ได้ยืนยันว่าวันนี้มีการส่งโฆษณา และไม่ใช่สถานะย้อนหลังของวันที่ 7"));
-  const counts = { Mind: 0, Coworkers: 0, SurvivalGuide: 0, Trap: 0 };
-  let quarantined = 0;
-  for (const record of Object.values(status.ads_by_id)) {
-    if (isQuarantine(record)) {
-      quarantined += 1;
-      continue;
-    }
-    if (record.effective_status === "ACTIVE") counts[record.book] += 1;
-  }
-  const row = el("div", "month-row");
-  for (const [id, name] of BOOKS) row.append(el("span", "", `${name} ${counts[id]}`));
-  box.append(row);
-  box.append(el("p", "web-sub", `รวมเปิดใช้งานใน 4 เล่ม ${Object.values(counts).reduce((a, b) => a + b, 0)} ตัว ไม่นับ ${quarantined} แอดที่ตัดออกจากยอด ครอบคลุมเฉพาะแอดใน ก.ย.–7 พ.ย. ไม่ใช่ทั้งบัญชี`));
-  return box;
+function totalRow(totals, baseline, label) {
+  const rate = rates(totals);
+  const row = el("div", "scan-total scan-cols");
+  const labelCell = el("span", "scan-total-label", `ยอดเล่ม · ผลลัพธ์ช่วง ${label}`);
+  row.append(labelCell);
+  row.append(metric("Spend", baht(totals.spend)));
+  row.append(metric("ROAS", baseline == null ? "—" : baseline.toFixed(2)));
+  row.append(metric("รายได้", baht(totals.revenue)));
+  row.append(metric("แชท", num(totals.chats)));
+  row.append(metric("บาท/แชท", rate.costPerMsg == null ? "—" : baht(rate.costPerMsg)));
+  row.append(metric("CPM", rate.cpm == null ? "—" : baht(rate.cpm)));
+  row.append(metric("ซื้อ", num(totals.purchases)));
+  row.append(metric("ซื้อ÷แชท", rate.cvrProxy == null ? "—" : (rate.cvrProxy * 100).toFixed(1) + "%"));
+  row.append(metric("AOV", rate.aov == null ? "—" : baht(rate.aov)));
+  row.append(el("span", "", ""));
+  return row;
 }
 
-function renderBook(root, { deck, status, book, reportId, contentId, statusId }) {
-  const name = BOOKS.find((item) => item[0] === book)?.[1] || book;
-  const sep = deck.bookTotals.sep[book];
-  const oct = deck.bookTotals.oct[book];
-  const nov = deck.bookTotals.nov1_7[book];
-  root.append(el("h2", "web-title", name));
-  const board = el("div", "month-board book-board");
-  const head = el("div", "month-head");
-  ["ช่วงผลลัพธ์", "Spend", "รายได้ Meta", "ROAS", "แชท", "บาท/แชท"].forEach((label) => head.append(el("span", "", label)));
-  board.append(head);
-  for (const [label, totals] of [["ก.ย. ทั้งเดือน", sep], ["ต.ค. ทั้งเดือน", oct], [FROZEN_PERFORMANCE.novMtdLabel, nov]]) {
-    const rate = rates(totals);
-    const row = el("div", "month-row");
-    [label, baht(totals.spend), baht(totals.revenue), roasText(totals), num(totals.chats), rate.costPerMsg == null ? "—" : baht(rate.costPerMsg)].forEach((value) => row.append(el("span", "", value)));
-    board.append(row);
-  }
-  root.append(board);
-  root.append(el("p", "web-sub", `MoM รายได้ ต.ค. เทียบ ก.ย. ${mom(oct.revenue, sep.revenue)} · ด้านล่างคือข้อความในช่วงผลลัพธ์ที่เลือก ไม่ได้เปลี่ยนเดือน Content`));
-  const messages = deck.messages.filter((message) => message.book === book && message.periods[reportId] && message.periods[reportId].spend > 0);
-  messages.sort((a, b) => b.periods[reportId].revenue - a.periods[reportId].revenue);
-  for (const message of messages.slice(0, 8)) {
-    const totals = message.periods[reportId];
-    const months = new Set();
-    for (const adId of message.adIds) {
-      const record = status.ads_by_id[adId];
-      if (!record || isQuarantine(record)) continue;
-      months.add(contentBadge(record).text);
-    }
-    const card = el("article", "msg-card");
-    card.append(el("h3", "", message.opening));
-    card.append(el("p", "badge", [...months].join(" · ") || "ไม่ระบุเดือน Content"));
-    card.append(el("p", "web-sub", `ผลลัพธ์ช่วง ${reportLabel(reportId)} · ROAS ${roasText(totals)} · Spend ${baht(totals.spend)} · แชท ${num(totals.chats)} · ${rates(totals).costPerMsg == null ? "—" : baht(rates(totals).costPerMsg)}/แชท`));
-    root.append(card);
-  }
-  root.append(renderAds(el("div"), { deck, status, book, reportId, contentId, statusId }));
+function metric(label, value) {
+  const cell = el("span", "scan-total-bit");
+  cell.append(el("small", "", label), document.createTextNode(value));
+  return cell;
 }
 
-function reportLabel(id) {
-  return {
-    sep: "ก.ย. ทั้งเดือน",
-    oct: "ต.ค. ทั้งเดือน",
-    oct1_7: "1–7 ต.ค.",
-    nov1_7: FROZEN_PERFORMANCE.novMtdLabel,
-  }[id] || id;
+function columnHead(baseline) {
+  const head = el("div", "scan-head scan-cols");
+  ["#", "", "แอด", "Spend", `ROAS · เส้นเล่ม ${baseline == null ? "—" : baseline.toFixed(2)}`, "รายได้", "แชท", "บาท/แชท", "CPM", "ซื้อ", "ซื้อ÷แชท", "AOV", ""].forEach((label) => head.append(el("span", "", label)));
+  return head;
 }
 
-function renderAds(root, { deck, status, book, reportId, contentId, statusId }) {
-  root.append(el("h2", "web-title", "ตารางแอด"));
-  root.append(el("p", "web-sub", `ผลลัพธ์ช่วง ${reportLabel(reportId)} คนละป้ายกับเดือน Content สถานะด้านล่างมาจากตอนตรวจ 8 พ.ย. 11:39`));
-  const rows = [];
-  const seen = new Set();
-  for (const record of Object.values(status.ads_by_id)) {
-    if (isQuarantine(record)) continue;
-    if (book && record.book !== book) continue;
-    const content = record.content_month || "unknown";
-    if (contentId === "unknown" && content !== "unknown") continue;
-    if (contentId && contentId !== "all" && contentId !== "unknown" && content !== contentId && content !== "unknown") continue;
-    if (statusId && statusId !== "all" && record.effective_status !== statusId) continue;
-    const metrics = deck.ads.find((ad) => ad.adId === record.ad_id && ad.period === reportId) || null;
-    if (statusId === "all" && contentId === "all" && !metrics && record.effective_status !== "ACTIVE") continue;
-    rows.push({ record, metrics });
-    seen.add(record.ad_id);
+function scanRow(ad, index, baseline, record) {
+  const rate = rates(ad);
+  const row = el("article", "scan-row scan-cols");
+  row.append(el("span", "scan-rank", String(index)));
+  row.append(thumb(ad));
+  const name = el("div", "scan-name");
+  const title = el("button", "ad-name", ad.adName);
+  title.type = "button";
+  title.title = ad.adName;
+  title.addEventListener("click", () => openDetail(ad));
+  name.append(title);
+  const badge = contentBadge(record);
+  name.append(el("em", "", `${ad.creatorTag} · ${badge.text}`));
+  row.append(name);
+  row.append(el("span", "scan-spend", baht(ad.spend)));
+  row.append(roasCell(rate.roas, baseline));
+  row.append(el("span", "scan-num", baht(ad.revenue)));
+  row.append(el("span", "scan-num", num(ad.chats)));
+  row.append(el("span", "scan-num", rate.costPerMsg == null ? "—" : baht(rate.costPerMsg)));
+  row.append(el("span", "scan-num", rate.cpm == null ? "—" : baht(rate.cpm)));
+  row.append(el("span", "scan-num", num(ad.purchases)));
+  row.append(el("span", "scan-num", rate.cvrProxy == null ? "—" : (rate.cvrProxy * 100).toFixed(1) + "%"));
+  row.append(el("span", "scan-num", rate.aov == null ? "—" : baht(rate.aov)));
+  row.append(sourceLink(ad));
+  return row;
+}
+
+function openDetail(ad) {
+  const dialog = document.getElementById("zoom");
+  const target = document.getElementById("zoom-img");
+  const caption = document.getElementById("zoom-caption");
+  if (ad.thumb) {
+    target.hidden = false;
+    target.src = "/media/" + ad.thumb;
+    target.alt = ad.assetLabel || ad.adName;
+  } else {
+    target.hidden = true;
+    target.removeAttribute("src");
   }
-  rows.sort((a, b) => (b.metrics?.revenue || 0) - (a.metrics?.revenue || 0));
-  const list = el("div", "ad-web");
-  for (const { record, metrics } of rows.slice(0, 12)) {
-    const badge = contentBadge(record);
-    const state = statusBadge(record);
-    const card = el("article", "ref-ad");
-    const top = el("div", "top");
-    const metricsAd = metrics || deck.ads.find((ad) => ad.adId === record.ad_id);
-    if (metricsAd?.thumb) {
-      const img = document.createElement("img");
-      img.src = "/media/" + metricsAd.thumb;
-      img.alt = metricsAd.assetLabel || "";
-      top.append(img);
-    } else top.append(el("div", "thumb-ph", "ไม่มีภาพ"));
-    const text = el("div");
-    text.append(el("h3", "ad-name", record.ad_name));
-    text.append(el("p", "badge", badge.text));
-    text.append(el("p", "ref-sub", `${record.book} · ${metricsAd?.creatorTag || "—"} · ${state.text}`));
-    text.append(el("p", "ref-sub", state.checked));
-    top.append(text);
-    card.append(top);
-    const line = el("div", "metrics");
-    const rate = metrics ? rates(metrics) : null;
-    const cells = [
-      ["Spend", metrics ? baht(metrics.spend) : "—"],
-      ["รายได้ Meta", metrics ? baht(metrics.revenue) : "—"],
-      ["ROAS", rate?.roas == null ? "—" : rate.roas.toFixed(2)],
-      ["แชท", metrics ? num(metrics.chats) : "—"],
-      ["บาท/แชท", rate?.costPerMsg == null ? "—" : baht(rate.costPerMsg)],
-      ["CPM", rate?.cpm == null ? "—" : baht(rate.cpm)],
-      ["ซื้อ", metrics ? num(metrics.purchases) : "—"],
-      ["ซื้อ÷แชท", rate?.cvrProxy == null ? "—" : (rate.cvrProxy * 100).toFixed(1) + "%"],
-      ["AOV", rate?.aov == null ? "—" : baht(rate.aov)],
-    ];
-    if (!metrics) line.append(el("p", "ref-sub", "ไม่มีผลลัพธ์ในช่วงที่เลือก"));
-    for (const [label, value] of cells) {
-      const cell = el("div");
-      cell.append(el("span", "", label), el("b", "", value));
-      line.append(cell);
-    }
-    card.append(line);
-    list.append(card);
+  caption.textContent = ad.adName + (opening(ad) ? "\n" + opening(ad) : "");
+  dialog.showModal();
+}
+
+function thumb(ad) {
+  if (!ad.thumb) {
+    const empty = el("div", "scan-thumb scan-ph", "ไม่มีภาพ");
+    return empty;
   }
-  root.append(list);
-  root.append(el("p", "web-sub", `แสดง ${Math.min(12, rows.length)} จาก ${rows.length} แอดที่ผ่านตัวกรอง · เดือน Content ที่ไม่ระบุยังถูกแสดง · 2 แอด quarantine ไม่อยู่ในยอด`));
-  return root;
+  const button = el("button", "scan-thumb");
+  button.type = "button";
+  const img = document.createElement("img");
+  img.src = "/media/" + ad.thumb;
+  img.alt = ad.assetLabel || ad.adName;
+  button.append(img);
+  button.title = ad.assetKind === "video-still" ? "ภาพนิ่ง ไม่ใช่คลิปที่เล่นได้" : (ad.assetLabel || "");
+  button.addEventListener("click", () => {
+    const dialog = document.getElementById("zoom");
+    const target = document.getElementById("zoom-img");
+    target.src = img.src;
+    target.alt = img.alt;
+    dialog.showModal();
+  });
+  return button;
+}
+
+function sourceLink(ad) {
+  const href = ad.ig || ad.fb || "";
+  if (!href) return el("span", "scan-open muted", "—");
+  const anchor = document.createElement("a");
+  anchor.className = "scan-open";
+  anchor.href = href;
+  anchor.target = "_blank";
+  anchor.rel = "noopener noreferrer";
+  anchor.textContent = "เปิด";
+  return anchor;
+}
+
+function roasCell(value, baseline) {
+  const cell = el("div", "scan-roas");
+  const track = el("div", "scan-track");
+  const scale = Math.max(3, baseline || 0, value || 0);
+  const fill = el("i", value != null && baseline != null && value < baseline ? "under" : "over");
+  fill.style.width = (value == null ? 0 : Math.min(100, (value / scale) * 100)) + "%";
+  track.append(fill);
+  if (baseline != null) {
+    const mark = el("b", "scan-mark");
+    mark.style.left = Math.min(100, (baseline / scale) * 100) + "%";
+    track.append(mark);
+  }
+  cell.append(track, el("strong", value != null && baseline != null && value < baseline ? "under" : "over", value == null ? "—" : value.toFixed(2)));
+  return cell;
 }
