@@ -1,5 +1,6 @@
 import { analysisItemId } from "/shared/analysis.js";
 import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js";
+import { TABLE_HEAD } from "/shared/labels.js";
 import { rates, sumTotals, volumeFlag } from "/shared/metrics.js";
 import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js";
 import { contentBadge } from "/shared/status-labels.js";
@@ -18,14 +19,14 @@ const PERIODS = [
   { id: "nov1_7", label: "1–7 พ.ย." },
 ];
 const SORTS = [
-  ["revenue", "รายได้ Meta"],
+  ["revenue", "Revenue"],
   ["spend", "Spend"],
   ["roas", "ROAS"],
-  ["chats", "แชท"],
-  ["costPerMsg", "บาท/แชท"],
+  ["chats", "Messages"],
+  ["costPerMsg", "Cost per Message"],
   ["cpm", "CPM"],
-  ["purchases", "ซื้อ"],
-  ["cvr", "ซื้อ÷แชท"],
+  ["purchases", "Purchases"],
+  ["cvr", "CVR"],
   ["aov", "AOV"],
 ];
 
@@ -590,9 +591,11 @@ function openMethod() {
   body.replaceChildren();
   const lines = [
     "ข้อมูลแคมเปญแชทที่ดึง 8 พ.ย. 2569 เวลาไทย ไม่รวมยอดวันที่ 8 ที่ยังไม่จบวัน",
-    "รายได้คือ omni_purchase ที่ Meta นับให้แอด ไม่ใช่ยอดขาย BEP และไม่ใช่ยอด Organic",
-    "ROAS และบาทต่อแชทหารจากผลรวมของช่วง ไม่ใช่ค่าเฉลี่ยของ ROAS รายแอด",
-    "ซื้อ÷แชทเป็นตัวเลขคร่าว ๆ เกิน 100% ได้ เพราะยอดซื้อไม่ได้ผูกกับคนที่ทัก",
+    "Revenue คือ omni_purchase ที่ Meta นับให้แอด ไม่ใช่ยอดขาย BEP และไม่ใช่ยอด Organic",
+    "ROAS = Revenue ÷ Spend จากผลรวมของช่วง ไม่ใช่ค่าเฉลี่ยของ ROAS รายแอด",
+    "Messages คือจำนวนแชทจากแอด Cost per Message = Spend ÷ Messages",
+    "CVR = Purchases ÷ Messages เป็นตัวแทน เกิน 100% ได้ เพราะยอดซื้อไม่ได้ผูกกับแชท และไม่ใช่ CVR event ของ Meta",
+    "AOV = Revenue ÷ Purchases CPM = Spend ÷ impressions × 1,000",
     "ข้อความมาจากตัวแอด ยังไม่ได้ดูคลิป และไม่ได้สั่งให้เพิ่มหรือปิดงบ",
     "1–7 ต.ค. เป็นส่วนหนึ่งของเดือน ต.ค. ห้ามนำไปบวกกับทั้งเดือน",
     "ตัด ad 120255364063130260 และ 120255499941520260 เพราะชื่อเล่มกับข้อความไม่ตรงกัน",
@@ -725,9 +728,9 @@ function setSlideHeading(id, kicker, title) {
 
 function metricHead() {
   const head = el("div", "phead metrics");
-  ["#", "", "ข้อความแอด", "Spend", "ROAS", "รายได้ Meta", "แชท", "บาท/แชท", "CPM", "ซื้อ", "ซื้อ÷แชท", "AOV", ""].forEach((label) => {
-    head.append(el("span", "", label));
-  });
+  for (const label of TABLE_HEAD) {
+    head.append(el("span", label === "Cost per Message" ? "wide" : "", label));
+  }
   return head;
 }
 
@@ -863,10 +866,10 @@ function bookTotalRow(book, totals) {
   return row;
 }
 
-function renderPagedAds(slideId, book) {
+function renderPagedAds(slideId, book, rowsOverride) {
   const mount = document.querySelector(`[data-mount="${slideId}"]`);
   if (!mount) return;
-  const rows = periodAds(book);
+  const rows = rowsOverride || periodAds(book);
   const pages = Math.max(1, Math.ceil(rows.length / PRESENT_ROWS));
   const page = Math.max(0, Math.min(slidePages[slideId] || 0, pages - 1));
   slidePages[slideId] = page;
@@ -875,7 +878,7 @@ function renderPagedAds(slideId, book) {
   const slice = rows.slice(page * PRESENT_ROWS, page * PRESENT_ROWS + PRESENT_ROWS);
   if (!slice.length) mount.append(el("p", "ref-foot", "ไม่มีแอดในช่วงนี้"));
   slice.forEach((ad, index) => mount.append(presentAdRow(ad, page * PRESENT_ROWS + index + 1, bookRate)));
-  mount.append(presentPager(slideId, page, pages, rows.length, () => renderPagedAds(slideId, book)));
+  mount.append(presentPager(slideId, page, pages, rows.length, () => renderPagedAds(slideId, book, rowsOverride)));
 }
 
 function renderBookTotals(slideId) {
@@ -912,7 +915,7 @@ function renderFullMonthReference() {
   document.querySelector("#s02-sep-oct h1").textContent = "อ้างอิงทั้งเดือน ก.ย. และ ต.ค.";
   mount.replaceChildren(el("p", "ref-foot", "คนละความยาวกับ 1–7 พ.ย. 2569 ใช้ดูย้อนหลัง ไม่ใช่ข้อสรุปของสัปดาห์นี้"));
   const head = el("div", "phead pref-head");
-  ["เล่ม", "ก.ย. ROAS", "ก.ย. รายได้", "ต.ค. ROAS", "ต.ค. รายได้", "MoM รายได้"].forEach((label) => head.append(el("span", "", label)));
+  ["เล่ม", "ก.ย. ROAS", "ก.ย. Revenue", "ต.ค. ROAS", "ต.ค. Revenue", "MoM Revenue"].forEach((label) => head.append(el("span", "", label)));
   mount.append(head);
   for (const book of BOOKS) {
     const sep = deck.bookTotals.sep[book.id];
@@ -940,28 +943,34 @@ function renderTopAds() {
 }
 
 function renderQuestions() {
+  setSlideHeading("s11-questions", "วิธีอ่าน", "ชื่อตัวเลขเก้าช่อง");
   const mount = document.querySelector('[data-mount="s11-questions"]');
-  mount.replaceChildren();
-  const lines = [
-    "ยังไม่ได้ดูคลิป ข้อความมาจากตัวแอด",
-    "ซื้อ÷แชทเกิน 100% ได้ เพราะยอดซื้อไม่ได้ผูกกับแชท",
-    "เดือน Content มาจากชื่อแอด ไม่ใช่ช่วงผลลัพธ์",
+  const defs = [
+    ["Spend", "เงินที่ใช้ในช่วงที่เลือก"],
+    ["Revenue", "รายได้ที่ Meta นับให้แอด (omni_purchase) ไม่ใช่ยอด BEP"],
+    ["ROAS", "Revenue ÷ Spend"],
+    ["Messages", "จำนวนแชทจากแอดในช่วงที่เลือก"],
+    ["Cost per Message", "Spend ÷ Messages"],
+    ["CPM", "Spend ÷ impressions × 1,000"],
+    ["Purchases", "จำนวนซื้อที่ Meta นับให้แอด"],
+    ["CVR", "Purchases ÷ Messages เป็นตัวแทน ไม่ใช่ CVR event ของ Meta"],
+    ["AOV", "Revenue ÷ Purchases"],
   ];
-  for (const line of lines) mount.append(el("p", "talk", line));
+  mount.replaceChildren();
+  for (const [name, text] of defs) {
+    const row = el("article", "prow def-row");
+    row.append(el("strong", "", name), el("span", "", text));
+    mount.append(row);
+  }
 }
 
 function renderSynthesis() {
+  const phrase = periodPhrase(adState.period);
+  setSlideHeading("s12-synthesis", phrase, `รอบนี้ข้อความแอดของ ${phrase}`);
   const mount = document.querySelector('[data-mount="s12-synthesis"]');
-  const period = adState.period;
-  const phrase = periodPhrase(period);
-  document.querySelector("#s12-synthesis h1").textContent = `รอบนี้ข้อความแอดของ ${phrase}`;
-  mount.replaceChildren();
-  for (const book of BOOKS) {
-    const totals = deck.bookTotals[period][book.id];
-    const rate = rates(totals);
-    mount.append(el("p", "talk", `${book.name} ROAS ${roasText(totals)} · Spend ${baht(totals.spend)} · รายได้ ${baht(totals.revenue)} · บาท/แชท ${rate.costPerMsg == null ? "—" : baht(rate.costPerMsg)}`));
-  }
-  mount.append(el("p", "ref-foot", "ตัวเลขนี้คือช่วงที่เลือกเท่านั้น ทั้งเดือนอยู่คนละสไลด์ และไม่ได้เอามาเทียบกับช่วง 7 วัน"));
+  mount.replaceChildren(metricHead(), toneLegend());
+  for (const book of BOOKS) mount.append(bookTotalRow(book, deck.bookTotals[adState.period][book.id]));
+  mount.append(el("p", "ref-foot", "เฉพาะช่วงที่เลือก ไม่ได้เอาทั้งเดือนไปเทียบกับช่วง 7 วัน"));
 }
 
 function renderAll() {
@@ -975,14 +984,32 @@ function renderAll() {
   renderBookAdsHeading("s06-coworkers", "Coworkers");
   renderBookAdsHeading("s07-survival", "SurvivalGuide");
   renderBookAdsHeading("s08-trap", "Trap");
-  setSlideHeading("s09-same-copy", phrase, "หนึ่งแอดต่อหนึ่งแถว แม้ข้อความจะซ้ำ");
-  renderPagedAds("s09-same-copy", "");
-  setSlideHeading("s10-ads", phrase, `แอด ${phrase} ตัวเลขครบเก้าช่อง`);
+  const allAds = periodAds("");
+  const copies = {};
+  for (const ad of allAds) copies[ad.bodyKey] = (copies[ad.bodyKey] || 0) + 1;
+  setSlideHeading("s09-same-copy", phrase, "ข้อความเดียวกัน ยังเป็นคนละแถว");
+  renderPagedAds("s09-same-copy", "", allAds.filter((ad) => copies[ad.bodyKey] > 1));
+  setSlideHeading("s10-ads", phrase, `แอด ${phrase}`);
   renderPagedAds("s10-ads", adState.book || "");
   renderQuestions();
   renderSynthesis();
-  const jump = document.querySelector('#jump option[value="0"]');
-  if (jump) jump.textContent = "1 " + document.querySelector("#s01-axis h1").textContent;
+  const jumpTitles = [
+    "1 สี่เล่ม",
+    "2 อ้างอิงทั้งเดือน",
+    "3 เทียบช่วงเท่ากัน",
+    "4 ข้อความที่รายได้สูง",
+    "5 Mind",
+    "6 ออฟฟิศ",
+    "7 Survival",
+    "8 กับดัก",
+    "9 ข้อความซ้ำ คนละแอด",
+    "10 แอดทั้งช่วง",
+    "11 ชื่อตัวเลข",
+    "12 สรุปช่วงที่เลือก",
+  ];
+  document.querySelectorAll("#jump option").forEach((option, i) => {
+    if (jumpTitles[i]) option.textContent = jumpTitles[i];
+  });
 }
 
 function renderBookAdsHeading(slideId, bookId) {
@@ -1294,12 +1321,14 @@ function bindChrome() {
   $("#prev").addEventListener("click", () => show(index - 1, true));
   $("#next").addEventListener("click", () => show(index + 1, true));
   $("#jump").addEventListener("change", (event) => show(Number(event.target.value), true));
-  $("#full").addEventListener("click", () => {
+  const toggleFull = () => {
     const slides = document.body.classList.contains("mode-present");
     const target = document.getElementById(slides ? "viewport" : "web-stage");
     if (document.fullscreenElement) document.exitFullscreen();
     else target.requestFullscreen().catch(() => {});
-  });
+  };
+  $("#full").addEventListener("click", toggleFull);
+  $("#full-slide").addEventListener("click", toggleFull);
   document.addEventListener("keydown", (event) => {
     if (!document.body.classList.contains("mode-present")) return;
     if (editableTarget(event.target)) return;
@@ -1502,9 +1531,6 @@ function bindWeb() {
     markNav();
     showWeb();
   });
-  document.querySelectorAll("#toolbar .book-chip").forEach((chip) => {
-    chip.addEventListener("click", () => show(Number(chip.dataset.slide), true));
-  });
   document.getElementById("present-period").addEventListener("change", (event) => {
     adState.period = event.target.value;
     document.getElementById("report-period").value = event.target.value;
@@ -1549,10 +1575,9 @@ function refreshViews() {
 function syncAsof() {
   const labels = { sep: "ก.ย. 2569 ทั้งเดือน", oct: "ต.ค. 2569 ทั้งเดือน", oct1_7: "1–7 ต.ค. 2569", nov1_7: "1–7 พ.ย. 2569" };
   const selected = document.getElementById("report-period").value;
-  const partial = selected === "nov1_7" || selected === "oct1_7" ? " · ไม่ใช่ทั้งเดือน" : "";
-  document.getElementById("asof").textContent = `ผลลัพธ์ช่วง ${labels[selected]}${partial} · ถึง 7 พ.ย. 2569 ไม่รวมวันนี้`;
+  document.getElementById("asof").textContent = "ถึง 7 พ.ย. 2569 · ไม่รวมวันนี้";
   const badge = document.getElementById("present-asof");
-  if (badge) badge.textContent = labels[selected] + partial;
+  if (badge) badge.textContent = labels[selected];
   const present = document.getElementById("present-period");
   if (present && present.value !== selected) present.value = selected;
   document.getElementById("status-asof").hidden = document.getElementById("status-filter").value === "all";

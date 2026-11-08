@@ -146,8 +146,25 @@ test("slides, analysis shortlist, and ad controls at both viewports", async () =
     assert.ok(bookTone.spend.every((tone) => tone === "volume"));
     assert.ok(bookTone.heights.every((height) => height > 20 && height < 96));
     assert.ok(bookTone.overflow < 2);
-    assert.equal(await page.$eval(".book-chip[data-slide='5']", (node) => node.getAttribute("aria-pressed")), "true");
-    assert.equal(await page.$eval(".book-chip[data-slide='4']", (node) => node.getAttribute("aria-pressed")), "false");
+    const chrome = await page.evaluate(() => {
+      const visible = (selector) => [...document.querySelectorAll(selector)].filter((node) => {
+        const style = getComputedStyle(node);
+        const box = node.getBoundingClientRect();
+        return style.display !== "none" && style.visibility !== "hidden" && box.width > 0 && box.height > 0;
+      }).length;
+      return {
+        full: visible("#full, #full-slide"),
+        period: visible("#present-period, #report-period"),
+        prev: visible("#prev"),
+        nav: visible("#webnav"),
+        chips: visible(".book-chip"),
+      };
+    });
+    assert.equal(chrome.full, 1);
+    assert.equal(chrome.period, 1);
+    assert.equal(chrome.prev, 1);
+    assert.equal(chrome.nav, 0);
+    assert.equal(chrome.chips, 0);
     await page.screenshot({ path: "/workspace/docs/progress/book-1366.png" });
     await page.screenshot({ path: "/opt/cursor/artifacts/book-1366.png" });
     await page.setViewport({ width: 1024, height: 554 });
@@ -212,15 +229,20 @@ test("slides, analysis shortlist, and ad controls at both viewports", async () =
       assert.ok(box.stageBottom <= box.toolbarTop + 1);
     }
     assert.match(box.slideText, /รอบนี้ข้อความแอด/);
+    const closing = await page.$eval("#s12-synthesis", (node) => node.innerText);
+    assert.match(closing, /Cost per Message/);
+    assert.equal(closing.includes("บาท/แชท"), false);
+    assert.equal(closing.includes("เป็น 1.45 ใน ต.ค."), false);
     await page.screenshot({ path: "/workspace/docs/progress/slide12-synthesis.png" });
     await page.screenshot({ path: "/opt/cursor/artifacts/slide12-synthesis.png" });
 
     await page.select("#jump", "9");
     await page.waitForSelector(".ad-name");
     const labels = await page.$$eval(".slide.active .metrics span", (nodes) => nodes.map((node) => node.textContent));
-    for (const label of ["Spend", "รายได้ Meta", "ROAS", "แชท", "บาท/แชท", "CPM", "ซื้อ", "ซื้อ÷แชท", "AOV"]) {
+    for (const label of ["Spend", "Revenue", "ROAS", "Messages", "Cost per Message", "CPM", "Purchases", "CVR", "AOV"]) {
       assert.ok(labels.includes(label), label);
     }
+    assert.equal(labels.some((label) => /บาท\/แชท|ซื้อ÷แชท|รายได้ Meta/.test(label)), false);
     const name = await page.$eval(".ad-name", (node) => node.textContent);
     assert.ok(name.length > 8);
     const tags = await page.$$eval("[data-filter='creator-filter'] option", (nodes) => nodes.map((node) => node.value));

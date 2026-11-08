@@ -725,7 +725,7 @@ select:focus-visible,
 .scan-sheet { overflow-x: auto; }
 .scan-cols {
   display: grid;
-  grid-template-columns: 26px 36px minmax(240px, 1.7fr) 76px minmax(108px, 0.85fr) 78px 46px 68px 50px 42px 64px 64px 92px;
+  grid-template-columns: 26px 36px minmax(180px, 1.5fr) 70px minmax(100px, 0.9fr) 78px 72px minmax(108px, 1fr) 52px 78px 48px 64px 92px;
   column-gap: 8px;
   align-items: center;
   min-width: 1180px;
@@ -833,16 +833,18 @@ body.mode-present .slide.essay h1 {
   max-width: none;
   font-size: clamp(20px, 3cqw, 34px);
 }
-body.mode-present .slide .question { display: none; }
+body.mode-present .slide .question,
+body.mode-present .ref-pill { display: none; }
 body.mode-present .content { overflow: hidden; }
 .phead, .prow {
   display: grid;
-  grid-template-columns: 16px 26px minmax(88px, 1.3fr) repeat(9, minmax(0, 0.78fr)) 34px;
+  grid-template-columns: 16px 26px minmax(96px, 1.35fr) minmax(52px, 0.7fr) minmax(78px, 0.95fr) minmax(58px, 0.72fr) minmax(58px, 0.7fr) minmax(86px, 1fr) minmax(42px, 0.5fr) minmax(64px, 0.72fr) minmax(40px, 0.48fr) minmax(52px, 0.62fr) 34px;
   column-gap: 4px;
   align-items: center;
 }
-.phead { color: #8b95a8; font-size: 11px; padding: 0 4px 2px; }
+.phead { color: #8b95a8; font-size: 12px; padding: 0 4px 2px; }
 .phead span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.phead span.wide, .scan-head span.wide { white-space: normal; line-height: 1.15; overflow: visible; }
 .prow {
   background: #fff;
   border-radius: 12px;
@@ -869,6 +871,7 @@ body.mode-present .content { overflow: hidden; }
 .pnum, .pcell { font-size: clamp(11px, 1.2cqw, 13px); font-variant-numeric: tabular-nums; min-width: 0; }
 .pcell { display: flex; align-items: center; gap: 2px; }
 .pref-row, .pref-head { grid-template-columns: 1.3fr repeat(5, minmax(0, 1fr)); }
+.def-row { grid-template-columns: 12em minmax(0, 1fr); }
 .ppager { display: flex; gap: 8px; align-items: center; color: #60708f; font-size: 12px; }
 .ppager button { border: 0; background: #fff; border-radius: 999px; padding: 4px 8px; color: #1b2744; }
 .roas-fill.neutral { background: #d5dbe8; }

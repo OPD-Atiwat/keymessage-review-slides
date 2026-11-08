@@ -4,6 +4,7 @@ import { comparisonRows, pageOf } from "/shared/comparison.js";
 import { FROZEN_PERFORMANCE } from "/shared/cutoff.js";
 import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js";
 import { contentBadge } from "/shared/status-labels.js";
+import { TABLE_HEAD } from "/shared/labels.js";
 
 const BOOKS = [
   ["Mind", "ถือไพ่เหนือกว่า"],
@@ -149,12 +150,12 @@ function totalRow(totals, baseline, label) {
   row.append(labelCell);
   row.append(metric("Spend", baht(totals.spend)));
   row.append(metric("ROAS", baseline == null ? "—" : baseline.toFixed(2)));
-  row.append(metric("รายได้", baht(totals.revenue)));
-  row.append(metric("แชท", num(totals.chats)));
-  row.append(metric("บาท/แชท", rate.costPerMsg == null ? "—" : baht(rate.costPerMsg)));
+  row.append(metric("Revenue", baht(totals.revenue)));
+  row.append(metric("Messages", num(totals.chats)));
+  row.append(metric("Cost per Message", rate.costPerMsg == null ? "—" : baht(rate.costPerMsg)));
   row.append(metric("CPM", rate.cpm == null ? "—" : baht(rate.cpm)));
-  row.append(metric("ซื้อ", num(totals.purchases)));
-  row.append(metric("ซื้อ÷แชท", rate.cvrProxy == null ? "—" : (rate.cvrProxy * 100).toFixed(1) + "%"));
+  row.append(metric("Purchases", num(totals.purchases)));
+  row.append(metric("CVR", rate.cvrProxy == null ? "—" : (rate.cvrProxy * 100).toFixed(1) + "%"));
   row.append(metric("AOV", rate.aov == null ? "—" : baht(rate.aov)));
   row.append(el("span", "", ""));
   return row;
@@ -168,7 +169,10 @@ function metric(label, value) {
 
 function columnHead(baseline) {
   const head = el("div", "scan-head scan-cols");
-  ["#", "", "แอด", "Spend", `ROAS · เส้นเล่ม ${baseline == null ? "—" : baseline.toFixed(2)}`, "รายได้", "แชท", "บาท/แชท", "CPM", "ซื้อ", "ซื้อ÷แชท", "AOV", ""].forEach((label) => head.append(el("span", "", label)));
+  TABLE_HEAD.forEach((label, index) => {
+    const text = index === 4 && baseline != null ? `ROAS · เส้นเล่ม ${baseline.toFixed(2)}` : label;
+    head.append(el("span", label === "Cost per Message" ? "wide" : "", text));
+  });
   return head;
 }
 
@@ -291,13 +295,13 @@ function metricLine(ad) {
   const line = el("p", "analysis-metrics");
   const bits = [
     ["Spend", baht(ad.spend)],
-    ["รายได้ Meta", baht(ad.revenue)],
+    ["Revenue", baht(ad.revenue)],
     ["ROAS", rate.roas == null ? "—" : rate.roas.toFixed(2)],
-    ["แชท", num(ad.chats)],
-    ["บาท/แชท", rate.costPerMsg == null ? "—" : baht(rate.costPerMsg)],
+    ["Messages", num(ad.chats)],
+    ["Cost per Message", rate.costPerMsg == null ? "—" : baht(rate.costPerMsg)],
     ["CPM", rate.cpm == null ? "—" : baht(rate.cpm)],
-    ["ซื้อ", num(ad.purchases)],
-    ["ซื้อ÷แชท", rate.cvrProxy == null ? "—" : (rate.cvrProxy * 100).toFixed(1) + "%"],
+    ["Purchases", num(ad.purchases)],
+    ["CVR", rate.cvrProxy == null ? "—" : (rate.cvrProxy * 100).toFixed(1) + "%"],
     ["AOV", rate.aov == null ? "—" : baht(rate.aov)],
   ];
   for (const [label, value] of bits) {
