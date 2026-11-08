@@ -13,6 +13,10 @@ test("book rates come from sums, not the mean of ad rates", () => {
       const rows = deck.ads.filter((ad) => ad.period === period && ad.book === book);
       const summed = sumTotals(rows);
       const published = deck.bookTotals[period][book];
+      if (!published) {
+        assert.equal(rows.length, 0);
+        continue;
+      }
       assert.equal(Math.round(summed.spend), Math.round(published.spend));
       assert.equal(Math.round(summed.revenue), Math.round(published.revenue));
       assert.equal(rates(published).roas.toFixed(2), rates(summed).roas.toFixed(2));

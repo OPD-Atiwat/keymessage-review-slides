@@ -7,21 +7,19 @@ const status = JSON.parse(readFileSync(new URL("../public/data/ad-status.json", 
 const deck = JSON.parse(readFileSync(new URL("../public/data/deck.json", import.meta.url), "utf8"));
 const QUARANTINE = ["120255364063130260", "120255499941520260"];
 
-test("coverage is the frozen four periods, with quarantine out of the book totals", () => {
+test("coverage keeps the old status snapshot and does not call new history ads active", () => {
   const ads = Object.values(status.ads_by_id);
-  assert.equal(ads.length, 755);
-  assert.equal(ads.filter((ad) => !isQuarantine(ad)).length, 753);
-  assert.equal(ads.filter(isQuarantine).length, 2);
+  assert.equal(status.summary.fresh_status_counts.ACTIVE, 86);
+  assert.equal(status.summary.content_month_production_verified, 0);
+  const added = ads.filter((ad) => !ad.status_checked_at);
+  assert.ok(added.length > 0);
+  assert.equal(added.some((ad) => ad.effective_status === "ACTIVE" || ad.delivery_confirmed), false);
   for (const id of QUARANTINE) {
     assert.equal(status.ads_by_id[id].excluded_from_book_totals, true);
     assert.equal(deck.ads.some((ad) => ad.adId === id), false);
   }
-  const active = { Mind: 0, Coworkers: 0, SurvivalGuide: 0, Trap: 0 };
-  for (const ad of ads) {
-    if (ad.effective_status === "ACTIVE" && !isQuarantine(ad)) active[ad.book] += 1;
-  }
-  assert.deepEqual(active, { Mind: 15, Coworkers: 18, SurvivalGuide: 21, Trap: 30 });
-  assert.equal(status.summary.fresh_status_counts.ACTIVE, 86);
+  assert.equal(deck.excluded.quarantine.length, 5);
+  assert.equal(deck.ads.some((ad) => deck.excluded.quarantine.some((row) => row.adId === ad.adId)), false);
 });
 
 test("content month stays on the name tag when the reporting period is different", () => {
@@ -30,11 +28,15 @@ test("content month stays on the name tag when the reporting period is different
   });
   assert.ok(octoberContentInNovember.length > 0);
   const unknown = Object.values(status.ads_by_id).filter((ad) => ad.content_month == null);
-  assert.equal(unknown.length, 2);
-  for (const ad of unknown) {
-    assert.match(ad.ad_name, /\[12\.10\.69\]/);
+  const ambiguous = unknown.filter((ad) => /\[12\.10\.69\]/.test(ad.ad_name || ""));
+  assert.equal(ambiguous.length, 2);
+  for (const ad of ambiguous) {
     assert.match(ad.content_month_label, /ไม่ระบุเดือน Content/);
     assert.equal(ad.content_month_basis, "ambiguous_year_in_ad_name_69_may_be_Buddhist_year_unverified");
+  }
+  for (const ad of unknown) {
+    assert.notEqual(ad.content_month_verified, true);
+    assert.notEqual(ad.delivery_confirmed, true);
   }
   const mismatched = Object.values(status.ads_by_id).find((ad) => {
     return ad.created_time && ad.content_month && !ad.created_time.startsWith(ad.content_month);

@@ -1,10 +1,10 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261108t100";
-import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261108t100";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261108t100";
-import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261108t100";
-import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261108t100";
-import { contentBadge } from "/shared/status-labels.js?v=20261108t100";
-import { renderWeb } from "/web.js?v=20261108t100";
+import { analysisItemId } from "/shared/analysis.js?v=20261108t103";
+import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261108t103";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261108t103";
+import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261108t103";
+import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261108t103";
+import { contentBadge } from "/shared/status-labels.js?v=20261108t103";
+import { renderWeb } from "/web.js?v=20261108t103";
 
 const BOOKS = [
   { id: "Mind", name: "ถือไพ่เหนือกว่า", cls: "mind" },
@@ -13,10 +13,13 @@ const BOOKS = [
   { id: "Trap", name: "กับดักความรู้สึกผิด", cls: "trap" },
 ];
 const PERIODS = [
-  { id: "sep", label: "ก.ย. ทั้งเดือน" },
-  { id: "oct", label: "ต.ค. ทั้งเดือน" },
-  { id: "oct1_7", label: "1–7 ต.ค." },
-  { id: "nov1_7", label: "1–7 พ.ย." },
+  { id: "may", label: "พ.ค. 2569" },
+  { id: "jun", label: "มิ.ย. 2569" },
+  { id: "jul", label: "ก.ค. 2569" },
+  { id: "aug", label: "ส.ค. 2569" },
+  { id: "sep", label: "ก.ย. 2569" },
+  { id: "oct", label: "ต.ค. 2569" },
+  { id: "nov1_7", label: "1–7 พ.ย. 2569" },
 ];
 const SORTS = [
   ["revenue", "Revenue"],
@@ -35,7 +38,7 @@ const slides = deckEl ? [...deckEl.querySelectorAll(".slide")] : [];
 let deck = null;
 let index = 0;
 let userMoved = false;
-const PERIOD_IDS = ["nov1_7", "oct1_7", "oct", "sep"];
+const PERIOD_IDS = ["nov1_7", "oct", "sep", "aug", "jul", "jun", "may"];
 const adState = { period: "nov1_7", book: "", tag: "", sort: "revenue", q: "", page: 0, bodyKey: "", contentId: "all", statusId: "all" };
 let statusData = { ads_by_id: {}, summary: {} };
 let webView = { view: "overview", book: "Mind", pages: {}, historyStart: 0 };

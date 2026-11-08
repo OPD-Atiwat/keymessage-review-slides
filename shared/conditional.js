@@ -14,7 +14,10 @@ export function changePct(current, previous) {
 /** Same-length pairs only. November-to-date is not compared with a full month. */
 export function sameLengthBase(reportId) {
   if (reportId === "oct") return "sep";
-  if (reportId === "nov1_7") return "oct1_7";
+  if (reportId === "sep") return "aug";
+  if (reportId === "aug") return "jul";
+  if (reportId === "jul") return "jun";
+  if (reportId === "jun") return "may";
   return null;
 }
 

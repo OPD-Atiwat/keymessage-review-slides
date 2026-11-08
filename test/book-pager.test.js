@@ -96,7 +96,7 @@ test("book next page keeps working after the book tab replaces the view", async 
     await page.click(".scan-row .pick-btn");
     await page.waitForFunction(() => document.querySelector(".scan-row .pick-btn").textContent.includes("เลือกแล้ว"));
     await page.click("[data-view='overview']");
-    await page.waitForSelector(".history-cell");
+    await page.waitForSelector(".metric-table");
     await page.reload({ waitUntil: "networkidle0" });
     await page.waitForSelector("body[data-hydrated='1']");
     assert.equal(await page.evaluate(() => localStorage.getItem("km-unrelated")), "keep-me");

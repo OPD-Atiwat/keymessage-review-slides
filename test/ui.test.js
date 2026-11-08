@@ -83,31 +83,53 @@ test("November overview and Mind book stay on the selected period", async () => 
     assert.deepEqual(logout, []);
     assert.equal(await page.$eval("#report-period", (node) => node.value), "nov1_7");
     assert.equal(await page.$eval("[data-view='overview']", (node) => node.getAttribute("aria-pressed")), "true");
-    await page.waitForSelector(".history-cell");
-    assert.match(await page.$eval(".history-wait", (node) => node.textContent), /พ\.ค\. 2569/);
-    assert.equal(await page.$(".history-cell[data-period='may']"), null);
-    const octRoas = await page.$eval("[data-book-history='Mind'][data-period='oct'] .history-roas", (node) => {
-      const style = getComputedStyle(node);
-      return { text: node.textContent, tone: node.className, background: style.backgroundColor };
+    await page.waitForSelector(".metric-book .metric-table");
+    assert.equal(await page.$$eval(".metric-book .metric-table", (nodes) => nodes.length), 4);
+    assert.match(await page.$eval(".history-help", (node) => node.textContent), /ไม่ใช่กำไร/);
+    assert.match(await page.$eval(".history-help", (node) => node.textContent), /เฉพาะรายการที่ยืนยันเล่มได้/);
+    assert.match(await page.$eval(".metric-scope", (node) => node.textContent), /เฉพาะรายการที่ยืนยันเล่มได้/);
+    const shape = await page.$eval(".metric-table[data-book='Mind']", (table) => {
+      const months = [...table.querySelectorAll("thead .month-col")].map((node) => node.textContent);
+      const metrics = [...table.querySelectorAll("tbody .metric-name")].map((node) => node.textContent);
+      const may = table.querySelector("[data-metric='spend'][data-period='may']").textContent;
+      const octRoas = table.querySelector("[data-metric='roas'][data-period='oct']");
+      const octSpend = table.querySelector("[data-metric='spend'][data-period='oct']");
+      const nov = table.querySelector("[data-metric='roas'][data-period='nov1_7']");
+      const mixed = table.querySelector(".history-cell, .history-pair, .history-roas");
+      return {
+        months,
+        metrics,
+        may,
+        octRoas: octRoas.textContent,
+        octClass: octRoas.className,
+        octColor: getComputedStyle(octRoas).color,
+        octBackground: getComputedStyle(octRoas).backgroundColor,
+        spendClass: octSpend.className,
+        spendText: octSpend.textContent,
+        novTitle: nov.title,
+        mixed: Boolean(mixed),
+      };
     });
-    assert.equal(octRoas.text, "0.69");
-    assert.match(octRoas.tone, /cell-worse/);
-    assert.equal(/▲|▼/.test(octRoas.text), false);
-    assert.ok(octRoas.background === "transparent" || octRoas.background === "rgba(0, 0, 0, 0)");
-    const octPaint = await page.$eval("[data-book-history='Mind'][data-period='oct']", (node) => ({
-      roas: getComputedStyle(node.querySelector(".history-roas")).color,
-      change: getComputedStyle(node.querySelector(".history-change")).color,
-      spend: getComputedStyle(node.querySelector(".history-pair")).color,
-      basis: node.querySelector(".history-basis").textContent,
-    }));
-    assert.equal(octPaint.roas, "rgb(159, 18, 57)");
-    assert.equal(octPaint.change, "rgb(159, 18, 57)");
-    assert.equal(octPaint.spend, "rgb(27, 39, 68)");
-    assert.equal(octPaint.basis, "เทียบ ก.ย.");
-    assert.equal(await page.$eval("[data-book-history='Mind'][data-period='nov1_7'] .history-roas", (node) => node.textContent), "0.89");
-    assert.equal(await page.$eval("[data-book-history='Mind'][data-period='nov1_7'] .history-basis", (node) => node.textContent), "เทียบ 1–7 ต.ค.");
+    assert.deepEqual(shape.months, ["พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "1–7 พ.ย."]);
+    assert.deepEqual(shape.metrics, ["Spend", "Revenue", "ROAS", "Messages", "Cost per Message", "CPM", "Purchases", "CVR", "AOV"]);
+    assert.equal(shape.may, "—");
+    assert.equal(shape.octRoas, "0.69");
+    assert.match(shape.octClass, /cell-worse/);
+    assert.equal(shape.octColor, "rgb(159, 18, 57)");
+    assert.ok(shape.octBackground === "transparent" || shape.octBackground === "rgba(0, 0, 0, 0)");
+    assert.equal(shape.spendText, "฿174,743");
+    assert.equal(await page.$eval(".metric-table[data-book='Mind'] [data-metric='spend'][data-period='may']", (node) => node.title), "ไม่มีรายการที่ยืนยันได้");
+    assert.match(shape.spendClass, /cell-volume/);
+    assert.match(shape.novTitle, /1–7 ต\.ค\./);
+    assert.equal(shape.novTitle.includes("ทั้งเดือน"), false);
+    assert.equal(shape.mixed, false);
+    assert.equal(await page.$(".history-cell"), null);
     await page.screenshot({ path: "/opt/cursor/artifacts/overview-nov-1366.png" });
     await page.screenshot({ path: "/workspace/docs/progress/overview-nov-1366.png" });
+    await page.setViewport({ width: 1024, height: 768 });
+    await page.screenshot({ path: "/opt/cursor/artifacts/overview-nov-1024.png" });
+    await page.screenshot({ path: "/workspace/docs/progress/overview-nov-1024.png" });
+    await page.setViewport({ width: 1366, height: 768 });
 
     await page.click("[data-book='Mind']");
     await page.waitForSelector(".scan-row");
@@ -156,7 +178,7 @@ test("November overview and Mind book stay on the selected period", async () => 
     await page.waitForFunction(() => document.querySelector("h2").textContent.includes("1–7 พ.ย. 2569"));
     assert.equal((await page.$eval("h2", (node) => node.textContent)).includes("ต.ค. ทั้งเดือน"), false);
     await page.click("[data-view='overview']");
-    await page.waitForSelector(".history-cell");
+    await page.waitForSelector(".metric-table");
     assert.equal(await page.$eval("#report-period", (node) => node.value), "nov1_7");
 
     await page.click("[data-book='Mind']");

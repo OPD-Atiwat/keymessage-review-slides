@@ -1,11 +1,11 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261108t100";
-import { rates } from "/shared/metrics.js?v=20261108t100";
-import { comparisonRows, pageOf } from "/shared/comparison.js?v=20261108t100";
-import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261108t100";
-import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261108t100";
-import { contentBadge } from "/shared/status-labels.js?v=20261108t100";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261108t100";
-import { UNPUBLISHED_MONTHS, revenueTrend, roasTrend, totalsFor, visibleHistory } from "/shared/history.js?v=20261108t100";
+import { analysisItemId } from "/shared/analysis.js?v=20261108t103";
+import { rates } from "/shared/metrics.js?v=20261108t103";
+import { comparisonRows, pageOf } from "/shared/comparison.js?v=20261108t103";
+import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261108t103";
+import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261108t103";
+import { contentBadge } from "/shared/status-labels.js?v=20261108t103";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261108t103";
+import { OVERVIEW_METRICS, OVERVIEW_MONTHS, metricCell } from "/shared/history.js?v=20261108t103";
 
 const BOOKS = [
   ["Mind", "ถือไพ่เหนือกว่า"],
@@ -41,7 +41,7 @@ function mom(current, previous) {
   return changePct(current, previous).text;
 }
 function reportLabel(id) {
-  return { sep: "ก.ย. ทั้งเดือน", oct: "ต.ค. ทั้งเดือน", oct1_7: "1–7 ต.ค. 2569", nov1_7: "1–7 พ.ย. 2569" }[id] || id;
+  return { may: "พ.ค. 2569", jun: "มิ.ย. 2569", jul: "ก.ค. 2569", aug: "ส.ค. 2569", sep: "ก.ย. 2569", oct: "ต.ค. 2569", oct1_7: "1–7 ต.ค. 2569", nov1_7: "1–7 พ.ย. 2569" }[id] || id;
 }
 function opening(ad) {
   const body = (ad.body || "").trim();
@@ -65,75 +65,80 @@ export function renderWeb(root, opts) {
 }
 
 function renderOverview(root, opts) {
-  const windowed = visibleHistory(opts.historyStart || 0);
+  const snap = opts.deck.snapshot || {};
   root.append(el("h2", "web-title", "ภาพรวมรายเดือน"));
-  root.append(el("p", "history-wait", `${UNPUBLISHED_MONTHS[0]}–${UNPUBLISHED_MONTHS[UNPUBLISHED_MONTHS.length - 1]} ยังไม่แสดง จนกว่าจะมีชุดข้อมูลที่ยืนยัน`));
-  const nav = el("div", "history-nav");
-  const prev = el("button", "", "เดือนก่อน");
-  prev.type = "button";
-  prev.disabled = windowed.start === 0;
-  prev.addEventListener("click", () => opts.onHistory(windowed.start - 1));
-  const next = el("button", "", "เดือนถัดไป");
-  next.type = "button";
-  next.disabled = windowed.start >= windowed.max;
-  next.addEventListener("click", () => opts.onHistory(windowed.start + 1));
-  const first = windowed.items[0];
-  const last = windowed.items[windowed.items.length - 1];
-  nav.append(prev, el("span", "", first && last ? `${first.label} ถึง ${last.label} · ถึง 7 พ.ย.` : "ยังไม่มีเดือนที่ยืนยัน"), next);
-  root.append(nav);
-  const board = el("div", "history-board");
-  board.style.setProperty("--cols", String(windowed.items.length));
-  const head = el("div", "history-row history-head");
-  head.append(el("span", "", "เล่ม"));
-  for (const period of windowed.items) {
-    const title = el("span", "", period.short);
-    title.title = period.kind === "partial" ? `${period.label} ยังไม่ครบเดือน` : period.label;
-    head.append(title);
-  }
-  board.append(head);
-  for (const [id, name] of BOOKS) {
-    const row = el("div", "history-row");
-    const book = el("button", "history-book", name);
-    book.type = "button";
-    book.addEventListener("click", () => opts.onBook(id));
-    row.append(book);
-    for (const period of windowed.items) {
-      row.append(historyCell(opts.deck.bookTotals, period, id));
-    }
-    board.append(row);
-  }
-  root.append(board);
-  for (const [id, name] of BOOKS) {
-    root.append(bookTable(name, id, opts, `ov-${id}`));
-  }
+  root.append(el("p", "history-help", `${snap.coverage || "เฉพาะรายการที่ยืนยันเล่มได้"} · ${snap.channel || ""} · ถึง ${snap.frozenThrough || "7 พ.ย. 2569"} · ตรวจ ${snap.pulled || ""} · ${snap.method || ""} · สีเฉพาะ ROAS, Cost per Message, CPM, CVR, AOV เป็นแนวโน้มในเล่มเดียวกัน ไม่ใช่กำไร เดือนเต็มเทียบเดือนเต็มล่าสุดที่มีข้อมูล 1–7 พ.ย. ไม่ได้เทียบเดือนเต็ม · ช่องว่างคือไม่มีรายการที่ยืนยันได้ ไม่ใช่ยอด 0 และไม่ได้แปลว่ายังไม่เปิดตัว · ${snap.attribution || ""} · ${snap.revision || ""} · ${snap.optionalCrossRange || ""}`));
+  for (const [id, name] of BOOKS) root.append(metricTable(opts.deck.bookTotals, id, name, opts));
+  root.append(exclusionNote(opts.deck));
+  for (const [id, name] of BOOKS) root.append(bookTable(name, id, opts, `ov-${id}`));
 }
 
-function historyCell(bookTotals, period, bookId) {
-  const cell = el("div", "history-cell");
-  cell.dataset.bookHistory = bookId;
-  cell.dataset.period = period.id;
-  const totals = totalsFor(bookTotals, period.id, bookId);
-  const roas = roasTrend(bookTotals, period.id, bookId);
-  const revenue = revenueTrend(bookTotals, period.id, bookId);
-  const roasNode = el("b", "history-roas cell-" + roas.tone, roas.text);
-  roasNode.title = roas.basis;
-  roasNode.setAttribute("aria-label", `ROAS ${roas.text} ${roas.basis}`);
-  const basis = el("small", "history-basis", roas.short);
-  basis.title = roas.basis;
-  cell.append(el("small", "", "ROAS"), roasNode, basis);
-  if (!totals) {
-    cell.append(el("span", "history-pair", "Spend —"));
-    cell.append(el("span", "history-pair", "Revenue —"));
-  } else {
-    cell.append(el("span", "history-pair", `Spend ${baht(totals.spend)}`));
-    cell.append(el("span", "history-pair", `Revenue ${baht(totals.revenue)}`));
+function metricTable(bookTotals, bookId, name, opts) {
+  const section = el("section", "metric-book");
+  const title = el("h3", "");
+  const open = el("button", "metric-book-name", name);
+  open.type = "button";
+  open.addEventListener("click", () => opts.onBook(bookId));
+  title.append(open);
+  section.append(title);
+  section.append(el("p", "metric-scope", "เฉพาะรายการที่ยืนยันเล่มได้"));
+  const scroller = el("div", "metric-scroll");
+  const table = el("table", "metric-table");
+  table.dataset.book = bookId;
+  const head = el("tr", "");
+  head.append(el("th", "metric-name", "เมตริก"));
+  for (const period of OVERVIEW_MONTHS) {
+    const cell = el("th", period.kind === "partial" ? "month-col is-partial" : "month-col", period.short);
+    cell.dataset.period = period.id;
+    cell.title = period.kind === "partial" ? `${period.label} ยังไม่ครบเดือน` : period.label;
+    head.append(cell);
   }
-  const change = el("span", "history-change cell-" + revenue.tone, revenue.text === "—" ? "—" : `รายได้ ${revenue.text}`);
-  change.title = revenue.basis;
-  change.setAttribute("aria-label", revenue.basis + " " + revenue.text);
-  cell.append(change);
-  if (period.kind === "partial") cell.append(el("small", "history-partial", "ยังไม่ครบเดือน"));
-  return cell;
+  const thead = el("thead", "");
+  thead.append(head);
+  const body = el("tbody", "");
+  for (const metric of OVERVIEW_METRICS) {
+    const row = el("tr", "");
+    row.append(el("th", "metric-name", metric.label));
+    for (const period of OVERVIEW_MONTHS) {
+      const value = metricCell(bookTotals, period.id, bookId, metric.key);
+      const cell = el("td", "metric-value cell-" + value.tone, value.text);
+      cell.dataset.metric = metric.key;
+      cell.dataset.period = period.id;
+      cell.title = value.basis;
+      cell.setAttribute("aria-label", `${metric.label} ${period.short} ${value.text}. ${value.basis}`);
+      row.append(cell);
+    }
+    body.append(row);
+  }
+  table.append(thead, body);
+  scroller.append(table);
+  section.append(scroller);
+  return section;
+}
+
+function exclusionNote(deck) {
+  const details = el("details", "exclusion-note");
+  details.append(el("summary", "", "รายการที่แยกออกจากยอด"));
+  details.append(el("p", "history-help", "นับแยกตามเดือน ช่องทาง และเหตุผล ไม่ได้บวกกลับเข้าเล่ม และโปรหลายเล่มห้ามบวกรวมข้ามเล่ม"));
+  const table = el("table", "metric-table exclusion-table");
+  const head = el("tr", "");
+  for (const label of ["เดือน", "เหตุผล", "ช่องทาง", "แอด", "Spend", "Revenue"]) head.append(el("th", "", label));
+  const thead = el("thead", "");
+  thead.append(head);
+  const body = el("tbody", "");
+  for (const row of deck.exclusions || []) {
+    const line = el("tr", "");
+    line.append(el("td", "", reportLabel(row.period)));
+    line.append(el("td", "", row.reason || row.bucket));
+    line.append(el("td", "", row.channel));
+    line.append(el("td", "", String(row.adCount)));
+    line.append(el("td", "", baht(row.spend)));
+    line.append(el("td", "", baht(row.revenue)));
+    body.append(line);
+  }
+  table.append(thead, body);
+  details.append(table);
+  return details;
 }
 
 function renderBook(root, opts) {
@@ -143,7 +148,12 @@ function renderBook(root, opts) {
 
 function bookTable(name, book, opts, pageKey) {
   const wrap = el("section", "scan-sheet");
-  const totals = opts.deck.bookTotals[opts.reportId][book];
+  const totals = opts.deck.bookTotals[opts.reportId]?.[book];
+  if (!totals) {
+    wrap.append(el("h2", "", `${name} · ${reportLabel(opts.reportId)}`));
+    wrap.append(el("p", "web-sub", "ไม่มีรายการที่ยืนยันได้"));
+    return wrap;
+  }
   const baseline = roasOf(totals);
   const rows = comparisonRows({
     ads: opts.deck.ads,
@@ -261,7 +271,7 @@ function pickButton(ad, opts) {
   return button;
 }
 
-const PERIOD_LABEL = { sep: "ก.ย. ทั้งเดือน", oct: "ต.ค. ทั้งเดือน", oct1_7: "1–7 ต.ค.", nov1_7: "1–7 พ.ย." };
+const PERIOD_LABEL = { may: "พ.ค. 2569", jun: "มิ.ย. 2569", jul: "ก.ค. 2569", aug: "ส.ค. 2569", sep: "ก.ย. 2569", oct: "ต.ค. 2569", oct1_7: "1–7 ต.ค.", nov1_7: "1–7 พ.ย." };
 const BOOK_LABEL = Object.fromEntries(BOOKS);
 
 function renderAnalysis(root, opts) {
@@ -306,6 +316,13 @@ function analysisCard(item, opts) {
     "ผลลัพธ์ช่วง " + (PERIOD_LABEL[item.reportPeriod] || item.reportPeriod),
   ].join(" · ")));
   if (ad) body.append(metricLine(ad));
+  else {
+    const reason = opts.deck.exclusionReasons?.[item.adId];
+    const why = item.reportPeriod === "oct1_7"
+      ? "ไม่มีช่วง 1–7 ต.ค. ในชุดที่ยืนยันรอบนี้"
+      : (reason || "ไม่ได้อยู่ในรายการที่ยืนยันเล่มได้ช่วงนี้");
+    body.append(el("p", "analysis-excluded", `ไม่รวมยอด: ${why}`));
+  }
   const area = document.createElement("textarea");
   area.className = "analysis-note";
   area.maxLength = 20000;
@@ -377,8 +394,9 @@ function legend() {
 function compareLine(opts, book) {
   const baseId = sameLengthBase(opts.reportId);
   if (!baseId) return null;
-  const current = opts.deck.bookTotals[opts.reportId][book];
-  const previous = opts.deck.bookTotals[baseId][book];
+  const current = opts.deck.bookTotals[opts.reportId]?.[book];
+  const previous = opts.deck.bookTotals[baseId]?.[book];
+  if (!current || !previous) return null;
   const line = el("p", "compare-line", `รายได้เทียบ ${reportLabel(baseId)} ${mom(current.revenue, previous.revenue)}`);
   return line;
 }

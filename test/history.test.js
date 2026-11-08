@@ -5,9 +5,12 @@ import test from "node:test";
 import { rates } from "../shared/metrics.js";
 import {
   MATCHED_PARTIAL,
+  OVERVIEW_METRICS,
+  OVERVIEW_MONTHS,
   SOURCE_CUTOFF,
   UNPUBLISHED_MONTHS,
   VERIFIED_HISTORY,
+  metricCell,
   revenueTrend,
   roasTrend,
   totalsFor,
@@ -19,10 +22,14 @@ const books = ["Mind", "Coworkers", "SurvivalGuide", "Trap"];
 
 function canon() {
   const out = {};
-  for (const period of ["sep", "oct", "oct1_7", "nov1_7"]) {
+  for (const period of ["may", "jun", "jul", "aug", "sep", "oct", "nov1_7"]) {
     out[period] = {};
     for (const book of books) {
       const row = deck.bookTotals[period][book];
+      if (!row) {
+        out[period][book] = null;
+        continue;
+      }
       const roas = rates(row).roas;
       out[period][book] = {
         spend: row.spend,
@@ -35,33 +42,35 @@ function canon() {
 }
 
 test("published history is only the frozen snapshot, with a stable checksum", () => {
-  assert.deepEqual(VERIFIED_HISTORY.map((item) => item.id), ["sep", "oct", "nov1_7"]);
+  assert.deepEqual(VERIFIED_HISTORY.map((item) => item.id), ["may", "jun", "jul", "aug", "sep", "oct", "nov1_7"]);
   assert.equal(SOURCE_CUTOFF, "2026-11-07");
-  assert.deepEqual(UNPUBLISHED_MONTHS, ["พ.ค. 2569", "มิ.ย. 2569", "ก.ค. 2569", "ส.ค. 2569"]);
+  assert.deepEqual(UNPUBLISHED_MONTHS, []);
+  assert.equal(deck.snapshot.cutoff, "2026-11-07");
   assert.equal(deck.snapshot.frozenThrough, "7 พ.ย. 2569");
+  assert.equal(deck.bookTotals.oct1_7, undefined);
   const hash = createHash("sha256").update(JSON.stringify(canon())).digest("hex");
-  assert.equal(hash, "b602b3aef7f05ea9a97328c58eae342306a8ed3eafd651d03e30797b96f3b028");
+  assert.equal(hash, "307471d50dc238200a5eb018464013979e2ce07d78d5a82afe6f5bad818832cb");
   assert.equal(canon().oct.Mind.roas, 0.69);
-  assert.equal(canon().nov1_7.Mind.spend, 34886.98999999999);
+  assert.equal(canon().nov1_7.Mind.spend, 34889.59);
+  assert.equal(canon().may.Mind, null);
+  assert.equal(canon().aug.SurvivalGuide, null);
 });
 
 test("a missing period is blank, and November is not judged against a full month", () => {
   assert.equal(totalsFor(deck.bookTotals, "may", "Mind"), null);
   assert.equal(totalsFor({}, "sep", "Mind"), null);
   const sep = roasTrend(deck.bookTotals, "sep", "Mind");
-  assert.equal(sep.text, "0.89");
-  assert.equal(sep.tone, "neutral");
-  assert.equal(sep.short, "ไม่มีเดือนก่อน");
+  assert.equal(sep.short, "เทียบ ส.ค.");
   const oct = roasTrend(deck.bookTotals, "oct", "Mind");
   assert.equal(oct.text, "0.69");
   assert.equal(oct.tone, "worse");
   assert.equal(oct.short, "เทียบ ก.ย.");
   const nov = roasTrend(deck.bookTotals, "nov1_7", "Mind");
   assert.equal(nov.text, "0.89");
-  assert.equal(nov.tone, "better");
-  assert.equal(nov.short, "เทียบ 1–7 ต.ค.");
-  assert.match(nov.basis, /1–7 ต\.ค\./);
-  assert.equal(nov.basis.includes("ทั้งเดือน"), false);
+  assert.equal(nov.tone, "neutral");
+  assert.equal(nov.short, "ไม่มีฐาน 1–7 ต.ค.");
+  assert.match(nov.basis, /ไม่มี 1–7 ต\.ค\./);
+  assert.equal(nov.basis.includes("เทียบเดือนเต็ม"), false);
   const stripped = { ...deck.bookTotals, oct1_7: undefined };
   const blocked = roasTrend(stripped, "nov1_7", "Mind");
   assert.equal(blocked.tone, "neutral");
@@ -74,11 +83,29 @@ test("revenue change is directional text and skips a full-month base for Novembe
   assert.equal(oct.tone, "worse");
   assert.match(oct.text, /-/);
   const nov = revenueTrend(deck.bookTotals, "nov1_7", "Coworkers");
-  assert.match(nov.basis, /1–7 ต\.ค\./);
-  assert.equal(nov.basis.includes("ต.ค. 2569 รายได้") && nov.basis.startsWith("เทียบ ต.ค. 2569"), false);
-  const sep = revenueTrend(deck.bookTotals, "sep", "Trap");
+  assert.equal(nov.text, "—");
+  assert.match(nov.basis, /ไม่มี 1–7 ต\.ค\./);
+  assert.equal(nov.basis.startsWith("เทียบ ต.ค. 2569"), false);
+  const sep = revenueTrend(deck.bookTotals, "sep", "SurvivalGuide");
   assert.equal(sep.text, "—");
   assert.equal(sep.tone, "neutral");
-  assert.equal(visibleHistory(0).items.length, 3);
-  assert.equal(visibleHistory(9).start, 0);
+  assert.equal(visibleHistory(0).items[0].id, "may");
+  assert.equal(visibleHistory(0).items.length, 4);
+  assert.equal(OVERVIEW_MONTHS.map((item) => item.short).join(","), "พ.ค.,มิ.ย.,ก.ค.,ส.ค.,ก.ย.,ต.ค.,1–7 พ.ย.");
+  assert.deepEqual(OVERVIEW_METRICS.map((item) => item.label), ["Spend", "Revenue", "ROAS", "Messages", "Cost per Message", "CPM", "Purchases", "CVR", "AOV"]);
+  const maySpend = metricCell(deck.bookTotals, "may", "Mind", "spend");
+  assert.equal(maySpend.text, "—");
+  assert.equal(maySpend.basis, "ไม่มีรายการที่ยืนยันได้");
+  assert.equal(maySpend.text.includes("0"), false);
+  const octSpend = metricCell(deck.bookTotals, "oct", "Mind", "spend");
+  assert.equal(octSpend.text, "฿174,743");
+  assert.equal(octSpend.tone, "volume");
+  const octRoas = metricCell(deck.bookTotals, "oct", "Mind", "roas");
+  assert.equal(octRoas.text, "0.69");
+  assert.equal(octRoas.tone, "worse");
+  const novRoas = metricCell(deck.bookTotals, "nov1_7", "Mind", "roas");
+  assert.equal(novRoas.text, "0.89");
+  assert.equal(novRoas.tone, "neutral");
+  assert.match(novRoas.basis, /ไม่มี 1–7 ต\.ค\./);
+  assert.equal(metricCell(deck.bookTotals, "may", "Coworkers", "cvrProxy").text.endsWith("%") || metricCell(deck.bookTotals, "may", "Coworkers", "cvrProxy").text === "—", true);
 });

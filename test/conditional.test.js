@@ -5,8 +5,9 @@ import { ratio } from "../shared/metrics.js";
 
 test("same-length change only, and a zero base is not an infinite percent", () => {
   assert.equal(sameLengthBase("oct"), "sep");
-  assert.equal(sameLengthBase("nov1_7"), "oct1_7");
-  assert.equal(sameLengthBase("sep"), null);
+  assert.equal(sameLengthBase("sep"), "aug");
+  assert.equal(sameLengthBase("jun"), "may");
+  assert.equal(sameLengthBase("nov1_7"), null);
   assert.equal(sameLengthBase("oct1_7"), null);
   assert.equal(changePct(100, 0).text, "ใหม่/ไม่มีฐาน");
   assert.equal(changePct(0, 0).text, "—");
