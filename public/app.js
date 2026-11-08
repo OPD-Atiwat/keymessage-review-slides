@@ -1,10 +1,10 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261108t103";
-import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261108t103";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261108t103";
-import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261108t103";
-import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261108t103";
-import { contentBadge } from "/shared/status-labels.js?v=20261108t103";
-import { renderWeb } from "/web.js?v=20261108t103";
+import { analysisItemId } from "/shared/analysis.js?v=20261108t104";
+import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261108t104";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261108t104";
+import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261108t104";
+import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261108t104";
+import { contentBadge } from "/shared/status-labels.js?v=20261108t104";
+import { renderWeb } from "/web.js?v=20261108t104";
 
 const BOOKS = [
   { id: "Mind", name: "ถือไพ่เหนือกว่า", cls: "mind" },
@@ -41,6 +41,7 @@ let userMoved = false;
 const PERIOD_IDS = ["nov1_7", "oct", "sep", "aug", "jul", "jun", "may"];
 const adState = { period: "nov1_7", book: "", tag: "", sort: "revenue", q: "", page: 0, bodyKey: "", contentId: "all", statusId: "all" };
 let statusData = { ads_by_id: {}, summary: {} };
+let previewManifest = { coverage: "pending", ads: {} };
 let webView = { view: "overview", book: "Mind", pages: {}, historyStart: 0 };
 
 function setWebView(patch) {
@@ -1372,6 +1373,7 @@ function showWeb() {
     contentId: adState.contentId,
     statusId: adState.statusId,
     pages: webView.pages,
+    previews: previewManifest,
     historyStart: webView.historyStart || 0,
     onHistory: (start) => {
       webView.historyStart = start;
@@ -1618,6 +1620,8 @@ async function init() {
   if (!response.ok) throw new Error("โหลดข้อมูลไม่ได้");
   deck = await response.json();
   statusData = await fetch("/data/ad-status.json").then((item) => item.json());
+  const previews = await fetch("/data/previews/manifest.json");
+  if (previews.ok) previewManifest = await previews.json();
   fillFilters();
   syncAsof();
   markNav();

@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { randomBytes, scryptSync } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import puppeteer from "puppeteer-core";
+import { comparisonRows } from "../shared/comparison.js";
+
+const deck = JSON.parse(readFileSync(new URL("../public/data/deck.json", import.meta.url), "utf8"));
+const status = JSON.parse(readFileSync(new URL("../public/data/ad-status.json", import.meta.url), "utf8"));
 
 function psql(sql) {
   execFileSync("sudo", ["-u", "postgres", "psql", "-v", "ON_ERROR_STOP=1", "-c", sql], { stdio: "pipe" });
@@ -50,7 +55,7 @@ async function login(page, origin, password) {
   await page.waitForSelector("body[data-hydrated='1']");
 }
 
-test("book next page keeps working after the book tab replaces the view", async () => {
+test("each book shows every selected-month ad without a pager", async () => {
   psql("DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'ubuntu') THEN CREATE ROLE ubuntu LOGIN SUPERUSER; END IF; END $$;");
   psql("DROP DATABASE IF EXISTS kmnotes_pager");
   psql("CREATE DATABASE kmnotes_pager OWNER ubuntu");
@@ -79,16 +84,18 @@ test("book next page keeps working after the book tab replaces the view", async 
     await page.waitForSelector("[data-book='Coworkers']");
     for (const book of ["Mind", "Coworkers", "SurvivalGuide", "Trap"]) {
       await page.click(`[data-book='${book}']`);
-      await page.waitForSelector(".scan-pager");
-      const before = await page.$eval(".ref-page", (node) => node.textContent);
-      await page.click(".scan-pager button:last-of-type");
-      await page.waitForFunction(() => document.querySelector(".ref-page"));
+      await page.waitForSelector(".scan-row");
+      const expected = comparisonRows({
+        ads: deck.ads,
+        statusById: status.ads_by_id,
+        book,
+        period: "nov1_7",
+      }).map((ad) => ad.adId).sort();
+      const shown = await page.$$eval(".scan-row", (nodes) => nodes.map((node) => node.dataset.adId).sort());
+      assert.deepEqual(shown, expected);
+      assert.equal(await page.$(".scan-pager"), null);
       const banner = await page.$eval("#boot-error", (node) => (node.hidden ? "" : node.textContent));
       assert.equal(banner, "");
-      const after = await page.$eval(".ref-page", (node) => node.textContent);
-      assert.notEqual(after, before, errors.join("\n"));
-      await page.click(".scan-pager button");
-      await page.waitForFunction((text) => document.querySelector(".ref-page").textContent === text, {}, before);
     }
     await page.select("#report-period", "oct");
     await page.waitForSelector(".scan-row");

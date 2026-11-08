@@ -164,9 +164,23 @@ test("November overview and Mind book stay on the selected period", async () => 
     assert.equal(tab, "rgb(217, 245, 228)");
     assert.equal(await page.$eval("[data-book='Mind']", (node) => node.getAttribute("aria-pressed")), "true");
     assert.equal(await page.$eval("#report-period", (node) => node.value), "nov1_7");
-    const pages = await page.$eval(".ref-page", (node) => node.textContent);
-    assert.match(pages, /^1 \/ [1-9]/);
-    assert.equal(pages.includes("/ 47"), false);
+    const shown = await page.$$eval(".scan-row", (nodes) => nodes.map((node) => node.dataset.adId));
+    assert.equal(shown.length, 33);
+    assert.equal(new Set(shown).size, 33);
+    assert.equal(await page.$(".scan-pager"), null);
+    assert.equal(await page.$(".ref-page"), null);
+    const labels = await page.$$eval("button", (nodes) => nodes.map((node) => node.textContent));
+    assert.equal(labels.some((text) => text.includes("ถัดไป") || text.includes("ดูเพิ่ม")), false);
+    assert.equal(await page.$eval("#content-month", (node) => node.value), "all");
+    const leadStatus = await page.$eval(".scan-row .scan-status", (node) => node.textContent);
+    assert.match(leadStatus, /ยังไม่ยืนยัน/);
+    assert.equal(leadStatus.includes("กำลังส่ง"), false);
+    const nameStyle = await page.$eval(".scan-row .ad-name", (node) => {
+      const style = getComputedStyle(node);
+      return { whiteSpace: style.whiteSpace, fontSize: style.fontSize };
+    });
+    assert.equal(nameStyle.whiteSpace, "normal");
+    assert.ok(parseFloat(nameStyle.fontSize) >= 16);
     await page.screenshot({ path: "/opt/cursor/artifacts/mind-nov-book-1366.png" });
     await page.screenshot({ path: "/workspace/docs/progress/mind-nov-book-1366.png" });
     await page.setViewport({ width: 1024, height: 768 });

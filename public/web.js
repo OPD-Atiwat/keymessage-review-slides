@@ -1,11 +1,13 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261108t103";
-import { rates } from "/shared/metrics.js?v=20261108t103";
-import { comparisonRows, pageOf } from "/shared/comparison.js?v=20261108t103";
-import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261108t103";
-import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261108t103";
-import { contentBadge } from "/shared/status-labels.js?v=20261108t103";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261108t103";
-import { OVERVIEW_METRICS, OVERVIEW_MONTHS, metricCell } from "/shared/history.js?v=20261108t103";
+import { analysisItemId } from "/shared/analysis.js?v=20261108t104";
+import { rates } from "/shared/metrics.js?v=20261108t104";
+import { comparisonRows } from "/shared/comparison.js?v=20261108t104";
+import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261108t104";
+import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261108t104";
+import { contentBadge, statusBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261108t104";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261108t104";
+import { OVERVIEW_METRICS, OVERVIEW_MONTHS, metricCell } from "/shared/history.js?v=20261108t104";
+import { previewFor } from "/shared/previews.js?v=20261108t104";
+import { orderMonthAds } from "/shared/reading-order.js?v=20261108t104";
 
 const BOOKS = [
   ["Mind", "ถือไพ่เหนือกว่า"],
@@ -13,7 +15,6 @@ const BOOKS = [
   ["SurvivalGuide", "Survival Guide"],
   ["Trap", "กับดักความรู้สึกผิด"],
 ];
-const PAGE = 6;
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -67,10 +68,13 @@ export function renderWeb(root, opts) {
 function renderOverview(root, opts) {
   const snap = opts.deck.snapshot || {};
   root.append(el("h2", "web-title", "ภาพรวมรายเดือน"));
-  root.append(el("p", "history-help", `${snap.coverage || "เฉพาะรายการที่ยืนยันเล่มได้"} · ${snap.channel || ""} · ถึง ${snap.frozenThrough || "7 พ.ย. 2569"} · ตรวจ ${snap.pulled || ""} · ${snap.method || ""} · สีเฉพาะ ROAS, Cost per Message, CPM, CVR, AOV เป็นแนวโน้มในเล่มเดียวกัน ไม่ใช่กำไร เดือนเต็มเทียบเดือนเต็มล่าสุดที่มีข้อมูล 1–7 พ.ย. ไม่ได้เทียบเดือนเต็ม · ช่องว่างคือไม่มีรายการที่ยืนยันได้ ไม่ใช่ยอด 0 และไม่ได้แปลว่ายังไม่เปิดตัว · ${snap.attribution || ""} · ${snap.revision || ""} · ${snap.optionalCrossRange || ""}`));
+  root.append(el("p", "history-help", `${snap.coverage || "เฉพาะรายการที่ยืนยันเล่มได้"} · ถึง ${snap.frozenThrough || "7 พ.ย. 2569"} · ตรวจ ${snap.pulled || ""} · สีบนอัตราเป็นแนวโน้มในเล่ม ไม่ใช่กำไร · 1–7 พ.ย. ไม่ได้เทียบเดือนเต็ม · — ไม่ใช่ 0`));
+  const method = el("details", "history-method");
+  method.append(el("summary", "", "วิธีนับ"));
+  method.append(el("p", "history-help", [snap.channel, snap.method, snap.attribution, snap.revision, snap.optionalCrossRange].filter(Boolean).join(" · ")));
+  root.append(method);
   for (const [id, name] of BOOKS) root.append(metricTable(opts.deck.bookTotals, id, name, opts));
   root.append(exclusionNote(opts.deck));
-  for (const [id, name] of BOOKS) root.append(bookTable(name, id, opts, `ov-${id}`));
 }
 
 function metricTable(bookTotals, bookId, name, opts) {
@@ -155,41 +159,26 @@ function bookTable(name, book, opts, pageKey) {
     return wrap;
   }
   const baseline = roasOf(totals);
-  const rows = comparisonRows({
+  const rows = orderMonthAds(comparisonRows({
     ads: opts.deck.ads,
     statusById: opts.status.ads_by_id,
     book,
     period: opts.reportId,
     contentId: opts.contentId,
     statusId: opts.statusId,
-  });
-  const paged = pageOf(rows, opts.pages?.[pageKey] || 0, PAGE);
+  }), opts.status.ads_by_id);
   const head = el("header", "scan-top");
   const titles = el("div");
   titles.append(el("h2", "", `${name} · ${reportLabel(opts.reportId)}`));
-  titles.append(el("div", "ref-rule"));
-  const aside = el("div", "scan-aside");
-  aside.append(el("p", "ref-page", `${paged.page + 1} / ${paged.pages}`));
-  aside.append(legend());
-  head.append(titles, aside);
+  titles.append(el("p", "scan-count", `${rows.length} แอดในช่วงนี้ · เปิดใช้งานจากสแนปช็อตอยู่บนสุด · ${STATUS_CHECKED_LABEL} · ไม่ได้ยืนยันว่ากำลังส่ง และไม่ได้กรองเดือน Content`));
+  head.append(titles, legend());
   wrap.append(head);
   const compare = compareLine(opts, book);
   if (compare) wrap.append(compare);
   wrap.append(totalRow(totals, baseline, reportLabel(opts.reportId)));
   wrap.append(columnHead(baseline));
   const bookRate = rates(totals);
-  rows.length ? paged.slice.forEach((ad, index) => wrap.append(scanRow(ad, paged.page * PAGE + index + 1, baseline, bookRate, opts.status.ads_by_id[ad.adId], opts))) : wrap.append(el("p", "web-sub", "ไม่มีแอดในช่วงนี้"));
-  const pager = el("div", "scan-pager");
-  const prev = el("button", "", "ก่อนหน้า");
-  prev.type = "button";
-  prev.disabled = paged.page === 0;
-  prev.addEventListener("click", () => opts.onPage(pageKey, paged.page - 1));
-  const next = el("button", "", "ถัดไป");
-  next.type = "button";
-  next.disabled = paged.page >= paged.pages - 1;
-  next.addEventListener("click", () => opts.onPage(pageKey, paged.page + 1));
-  pager.append(prev, el("span", "", `${rows.length} แอด · ไม่ได้ยุบแอดที่ใช้ข้อความเดียวกัน`), next);
-  wrap.append(pager);
+  rows.length ? rows.forEach((ad, index) => wrap.append(scanRow(ad, index + 1, baseline, bookRate, opts.status.ads_by_id[ad.adId], opts))) : wrap.append(el("p", "web-sub", "ไม่มีแอดในช่วงนี้"));
   return wrap;
 }
 
@@ -229,16 +218,21 @@ function columnHead(baseline) {
 function scanRow(ad, index, baseline, bookRate, record, opts) {
   const rate = rates(ad);
   const row = el("article", "scan-row scan-cols");
+  row.dataset.adId = ad.adId;
   row.append(el("span", "scan-rank", String(index)));
-  row.append(thumb(ad));
+  row.append(thumb(ad, opts.previews));
   const name = el("div", "scan-name");
   const title = el("button", "ad-name", ad.adName);
   title.type = "button";
   title.title = ad.adName;
-  title.addEventListener("click", () => openDetail(ad));
+  title.addEventListener("click", () => openDetail(ad, opts.previews));
   name.append(title);
+  const state = statusBadge(record);
+  const status = el("span", "scan-status", state.text);
+  status.title = state.detail;
+  name.append(status);
   const badge = contentBadge(record);
-  name.append(el("em", "", `${ad.creatorTag} · ${badge.text}`));
+  name.append(el("em", "", `${ad.creatorTag || "ไม่ระบุป้าย"} · ${badge.text}`));
   row.append(name);
   row.append(volumeNum("spend", baht(ad.spend)));
   row.append(volumeNum("revenue", baht(ad.revenue)));
@@ -401,14 +395,15 @@ function compareLine(opts, book) {
   return line;
 }
 
-function openDetail(ad) {
+function openDetail(ad, manifest) {
   const dialog = document.getElementById("zoom");
   const target = document.getElementById("zoom-img");
   const caption = document.getElementById("zoom-caption");
-  if (ad.thumb) {
+  const frame = previewSource(ad, manifest);
+  if (frame) {
     target.hidden = false;
-    target.src = "/media/" + ad.thumb;
-    target.alt = ad.assetLabel || ad.adName;
+    target.src = frame.src;
+    target.alt = frame.alt;
   } else {
     target.hidden = true;
     target.removeAttribute("src");
@@ -417,25 +412,24 @@ function openDetail(ad) {
   dialog.showModal();
 }
 
-function thumb(ad) {
-  if (!ad.thumb) {
-    const empty = el("div", "scan-thumb scan-ph", "ไม่มีภาพ");
-    return empty;
-  }
+function previewSource(ad, manifest) {
+  const ready = previewFor(manifest, ad.adId);
+  if (ready) return ready;
+  if (!ad.thumb) return null;
+  return { src: "/media/" + ad.thumb, alt: ad.assetLabel || ad.adName };
+}
+
+function thumb(ad, manifest) {
+  const frame = previewSource(ad, manifest);
+  if (!frame) return el("div", "scan-thumb scan-ph", "ยังไม่มีภาพจากวิดีโอ");
   const button = el("button", "scan-thumb");
   button.type = "button";
   const img = document.createElement("img");
-  img.src = "/media/" + ad.thumb;
-  img.alt = ad.assetLabel || ad.adName;
+  img.src = frame.src;
+  img.alt = frame.alt || ad.adName;
   button.append(img);
-  button.title = ad.assetKind === "video-still" ? "ภาพนิ่ง ไม่ใช่คลิปที่เล่นได้" : (ad.assetLabel || "");
-  button.addEventListener("click", () => {
-    const dialog = document.getElementById("zoom");
-    const target = document.getElementById("zoom-img");
-    target.src = img.src;
-    target.alt = img.alt;
-    dialog.showModal();
-  });
+  button.title = frame.src.startsWith("/data/previews/") ? "ภาพจากวิดีโอ" : "ภาพนิ่งที่มีอยู่ ไม่ใช่เฟรมวิดีโอชุดใหม่";
+  button.addEventListener("click", () => openDetail(ad, manifest));
   return button;
 }
 
