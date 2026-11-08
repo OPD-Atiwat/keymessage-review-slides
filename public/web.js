@@ -1,13 +1,12 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261108t105";
-import { rates } from "/shared/metrics.js?v=20261108t105";
-import { comparisonRows } from "/shared/comparison.js?v=20261108t105";
-import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261108t105";
-import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261108t105";
-import { contentBadge, statusBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261108t105";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261108t105";
-import { OVERVIEW_METRICS, OVERVIEW_MONTHS, metricCell } from "/shared/history.js?v=20261108t105";
-import { previewState } from "/shared/previews.js?v=20261108t105";
-import { orderMonthAds } from "/shared/reading-order.js?v=20261108t105";
+import { analysisItemId } from "/shared/analysis.js?v=20261108t106";
+import { rates } from "/shared/metrics.js?v=20261108t106";
+import { comparisonRows } from "/shared/comparison.js?v=20261108t106";
+import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261108t106";
+import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261108t106";
+import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261108t106";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261108t106";
+import { OVERVIEW_METRICS, OVERVIEW_MONTHS, metricCell } from "/shared/history.js?v=20261108t106";
+import { filterAds, sortAds } from "/shared/ad-query.js?v=20261108t106";
 
 const BOOKS = [
   ["Mind", "ถือไพ่เหนือกว่า"],
@@ -150,7 +149,19 @@ function renderBook(root, opts) {
   root.append(bookTable(name, opts.book, opts, opts.book));
 }
 
-function bookTable(name, book, opts, pageKey) {
+const QUERY_METRICS = [
+  ["spend", "Spend"],
+  ["revenue", "Revenue"],
+  ["roas", "ROAS"],
+  ["chats", "Messages"],
+  ["costPerMsg", "Cost per Message"],
+  ["cpm", "CPM"],
+  ["purchases", "Purchases"],
+  ["cvrProxy", "CVR"],
+  ["aov", "AOV"],
+];
+
+function bookTable(name, book, opts) {
   const wrap = el("section", "scan-sheet");
   const totals = opts.deck.bookTotals[opts.reportId]?.[book];
   if (!totals) {
@@ -158,34 +169,93 @@ function bookTable(name, book, opts, pageKey) {
     wrap.append(el("p", "web-sub", "ไม่มีรายการที่ยืนยันได้"));
     return wrap;
   }
+  const query = opts.query || { sortKey: "spend", sortDir: "desc", filterKey: "spend", min: "", max: "", appliedKey: "spend", appliedMin: "", appliedMax: "", error: "" };
   const baseline = roasOf(totals);
-  const rows = orderMonthAds(comparisonRows({
+  const all = comparisonRows({
     ads: opts.deck.ads,
     statusById: opts.status.ads_by_id,
     book,
     period: opts.reportId,
     contentId: opts.contentId,
     statusId: opts.statusId,
-  }), opts.status.ads_by_id);
+  });
+  const filtered = filterAds(all, { key: query.appliedKey || query.filterKey, min: query.appliedMin || "", max: query.appliedMax || "" });
+  const rows = filtered.ok ? sortAds(filtered.rows, query.sortKey, query.sortDir) : sortAds(all, query.sortKey, query.sortDir);
   const head = el("header", "scan-top");
   const titles = el("div");
   titles.append(el("h2", "", `${name} · ${reportLabel(opts.reportId)}`));
-  titles.append(el("p", "scan-count", `${rows.length} แอดในช่วงนี้ · เปิดใช้งานจากสแนปช็อตอยู่บนสุด · ${STATUS_CHECKED_LABEL} · ไม่ได้ยืนยันว่ากำลังส่ง และไม่ได้กรองเดือน Content`));
+  titles.append(el("p", "scan-count", `${rows.length}/${all.length} แอด`));
   head.append(titles, legend());
-  wrap.append(head);
+  wrap.append(head, filterBar(query, opts));
+  if (!filtered.ok) wrap.append(el("p", "metric-filter-error", filtered.message || query.error));
+  else if (query.error) wrap.append(el("p", "metric-filter-error", query.error));
   const compare = compareLine(opts, book);
   if (compare) wrap.append(compare);
   wrap.append(totalRow(totals, baseline, reportLabel(opts.reportId)));
-  wrap.append(columnHead(baseline));
+  const scroller = el("div", "scan-scroll");
+  scroller.append(columnHead(baseline, query, opts));
   const bookRate = rates(totals);
-  rows.length ? rows.forEach((ad, index) => wrap.append(scanRow(ad, index + 1, baseline, bookRate, opts.status.ads_by_id[ad.adId], opts))) : wrap.append(el("p", "web-sub", "ไม่มีแอดในช่วงนี้"));
+  if (!rows.length) scroller.append(el("p", "web-sub", all.length ? "ไม่มีแอดในช่วงตัวเลขนี้" : "ไม่มีแอดในช่วงนี้"));
+  else rows.forEach((ad, index) => scroller.append(scanRow(ad, index + 1, baseline, bookRate, opts.status.ads_by_id[ad.adId], opts)));
+  wrap.append(scroller);
   return wrap;
+}
+
+function filterBar(query, opts) {
+  const form = el("form", "metric-filter");
+  const metric = document.createElement("select");
+  metric.className = "metric-filter-key";
+  metric.setAttribute("aria-label", "เมตริกที่ใช้กรอง");
+  for (const [key, label] of QUERY_METRICS) metric.append(new Option(label, key));
+  metric.value = query.filterKey || "spend";
+  const min = document.createElement("input");
+  min.className = "metric-min";
+  min.inputMode = "decimal";
+  min.placeholder = metric.value === "cvrProxy" ? "ตั้งแต่ %" : "ตั้งแต่";
+  min.setAttribute("aria-label", "ค่าต่ำสุด");
+  min.value = query.min || "";
+  const max = document.createElement("input");
+  max.className = "metric-max";
+  max.inputMode = "decimal";
+  max.placeholder = metric.value === "cvrProxy" ? "ถึง %" : "ถึง";
+  max.setAttribute("aria-label", "ค่าสูงสุด");
+  max.value = query.max || "";
+  metric.addEventListener("change", () => {
+    const percent = metric.value === "cvrProxy";
+    min.placeholder = percent ? "ตั้งแต่ %" : "ตั้งแต่";
+    max.placeholder = percent ? "ถึง %" : "ถึง";
+  });
+  const apply = el("button", "", "กรอง");
+  apply.type = "submit";
+  const reset = el("button", "metric-reset", "ล้าง");
+  reset.type = "button";
+  form.append(el("span", "", "กรอง"), metric, min, max, apply, reset);
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const next = filterAds([{ adId: "0", spend: 0, revenue: 0, impressions: 0, chats: 0, purchases: 0 }], {
+      key: metric.value,
+      min: min.value,
+      max: max.value,
+    });
+    opts.onQuery({
+      ...query,
+      filterKey: metric.value,
+      min: min.value,
+      max: max.value,
+      appliedKey: next.ok ? metric.value : query.appliedKey,
+      appliedMin: next.ok ? min.value : query.appliedMin,
+      appliedMax: next.ok ? max.value : query.appliedMax,
+      error: next.ok ? "" : next.message,
+    });
+  });
+  reset.addEventListener("click", () => opts.onQuery({ sortKey: "spend", sortDir: "desc", filterKey: "spend", min: "", max: "", appliedKey: "spend", appliedMin: "", appliedMax: "", error: "" }));
+  return form;
 }
 
 function totalRow(totals, baseline, label) {
   const rate = rates(totals);
   const row = el("div", "scan-total scan-cols");
-  const labelCell = el("span", "scan-total-label", `ยอดเล่ม · ผลลัพธ์ช่วง ${label}`);
+  const labelCell = el("span", "scan-total-label", `ยอดเล่มทั้งช่วง ${label} · ไม่ใช่ยอดที่กรอง`);
   row.append(labelCell);
   row.append(metric("Spend", baht(totals.spend)));
   row.append(metric("Revenue", baht(totals.revenue)));
@@ -206,12 +276,26 @@ function metric(label, value) {
   return cell;
 }
 
-function columnHead(baseline) {
+function columnHead(baseline, query, opts) {
   const head = el("div", "scan-head scan-cols");
-  TABLE_HEAD.forEach((label) => {
-    const text = label === "ROAS" && baseline != null ? `ROAS · เส้นเล่ม ${baseline.toFixed(2)}` : label;
-    head.append(el("span", label === "Cost per Message" ? "wide" : "", text));
-  });
+  head.append(el("span", "scan-rank", "#"));
+  const name = el("span", "scan-name", "ข้อความแอด");
+  head.append(name);
+  head.append(el("span", "", "Creator"));
+  head.append(el("span", "", "Content"));
+  for (const [key, label] of QUERY_METRICS) {
+    const button = el("button", "sort-key", label + (query.sortKey === key ? (query.sortDir === "desc" ? " ↓" : " ↑") : ""));
+    button.type = "button";
+    button.dataset.sort = key;
+    button.setAttribute("aria-sort", query.sortKey === key ? (query.sortDir === "asc" ? "ascending" : "descending") : "none");
+    if (key === "roas" && baseline != null) button.title = `เส้นเล่ม ${baseline.toFixed(2)} เป็นยอดทั้งช่วง`;
+    button.addEventListener("click", () => {
+      const dir = query.sortKey === key && query.sortDir === "desc" ? "asc" : "desc";
+      opts.onQuery({ ...query, sortKey: key, sortDir: dir, error: "" });
+    });
+    head.append(button);
+  }
+  head.append(el("span", "", ""));
   return head;
 }
 
@@ -220,23 +304,24 @@ function scanRow(ad, index, baseline, bookRate, record, opts) {
   const row = el("article", "scan-row scan-cols");
   row.dataset.adId = ad.adId;
   row.append(el("span", "scan-rank", String(index)));
-  row.append(thumb(ad, opts.previews));
   const name = el("div", "scan-name");
   const title = el("button", "ad-name", ad.adName);
   title.type = "button";
   title.title = ad.adName;
-  title.addEventListener("click", () => openDetail(ad, opts.previews));
+  title.setAttribute("aria-label", ad.adName);
+  title.addEventListener("click", () => openDetail(ad));
   name.append(title);
-  const state = statusBadge(record);
-  const status = el("span", "scan-status", state.text);
-  status.title = state.detail;
-  name.append(status);
-  const badge = contentBadge(record);
-  name.append(el("em", "", `${ad.creatorTag || "ไม่ระบุป้าย"} · ${badge.text}`));
   row.append(name);
+  const creator = el("span", "scan-creator", ad.creatorTag || "—");
+  creator.title = ad.creatorTag || "";
+  row.append(creator);
+  const content = contentBadge(record);
+  const month = el("span", "scan-content", content.id === "unknown" ? "ไม่ระบุ" : content.id);
+  month.title = content.text;
+  row.append(month);
   row.append(volumeNum("spend", baht(ad.spend)));
   row.append(volumeNum("revenue", baht(ad.revenue)));
-  row.append(roasCell(rate.roas, baseline));
+  row.append(coloredNum("roas", rate.roas == null ? "—" : rate.roas.toFixed(2), metricTone("roas", rate.roas, baseline)));
   row.append(volumeNum("chats", num(ad.chats)));
   row.append(coloredNum("costPerMsg", rate.costPerMsg == null ? "—" : baht(rate.costPerMsg), metricTone("costPerMsg", rate.costPerMsg, bookRate.costPerMsg)));
   row.append(coloredNum("cpm", rate.cpm == null ? "—" : baht(rate.cpm), metricTone("cpm", rate.cpm, bookRate.cpm)));
@@ -299,7 +384,7 @@ function analysisCard(item, opts) {
   const ad = (opts.deck.ads || []).find((row) => row.adId === item.adId && row.period === item.reportPeriod);
   const card = el("article", "analysis-card is-picked");
   card.dataset.analysis = item.itemId;
-  const media = ad ? thumb(ad) : el("div", "scan-thumb scan-ph", "ไม่มีภาพ");
+  const media = el("div", "scan-ph", "");
   const body = el("div", "analysis-body");
   const title = el("h3", "ad-name", ad ? ad.adName : item.adId);
   title.title = ad ? ad.adName : item.adId;
@@ -395,42 +480,14 @@ function compareLine(opts, book) {
   return line;
 }
 
-function openDetail(ad, manifest) {
+function openDetail(ad) {
   const dialog = document.getElementById("zoom");
   const target = document.getElementById("zoom-img");
   const caption = document.getElementById("zoom-caption");
-  const frame = previewState(manifest, ad.adId);
-  if (frame.state === "ready") {
-    target.hidden = false;
-    target.src = frame.src;
-    target.alt = frame.alt;
-  } else {
-    target.hidden = true;
-    target.removeAttribute("src");
-  }
+  target.hidden = true;
+  target.removeAttribute("src");
   caption.textContent = ad.adName + (opening(ad) ? "\n" + opening(ad) : "");
   dialog.showModal();
-}
-
-function thumb(ad, manifest) {
-  const frame = previewState(manifest, ad.adId);
-  if (frame.state !== "ready") {
-    const empty = el("div", "scan-thumb scan-ph", frame.label);
-    empty.title = frame.title;
-    return empty;
-  }
-  const button = el("button", "scan-thumb");
-  button.type = "button";
-  button.title = frame.title;
-  button.dataset.previewKind = frame.kind;
-  const img = document.createElement("img");
-  img.src = frame.src;
-  img.alt = frame.alt;
-  img.width = frame.width || 72;
-  img.height = frame.height || 72;
-  button.append(img, el("span", "scan-preview-kind", frame.label));
-  button.addEventListener("click", () => openDetail(ad, manifest));
-  return button;
 }
 
 function sourceLink(ad) {

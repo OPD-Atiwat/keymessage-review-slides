@@ -136,7 +136,7 @@ test("November overview and Mind book stay on the selected period", async () => 
     const mind = await page.$eval("h2", (node) => node.textContent);
     assert.match(mind, /1–7 พ\.ย\. 2569/);
     assert.equal(mind.includes("ต.ค. ทั้งเดือน"), false);
-    const headers = await page.$$eval(".scan-head span", (nodes) => nodes.map((node) => node.textContent));
+    const headers = await page.$$eval(".scan-head button, .scan-head span", (nodes) => nodes.map((node) => node.textContent));
     for (const label of ["Spend", "Revenue", "ROAS", "Messages", "Cost per Message", "CPM", "Purchases", "CVR", "AOV"]) {
       assert.ok(headers.some((text) => text === label || text.startsWith(label + " ")), label);
     }
@@ -172,42 +172,46 @@ test("November overview and Mind book stay on the selected period", async () => 
     const labels = await page.$$eval("button", (nodes) => nodes.map((node) => node.textContent));
     assert.equal(labels.some((text) => text.includes("ถัดไป") || text.includes("ดูเพิ่ม")), false);
     assert.equal(await page.$eval("#content-month", (node) => node.value), "all");
-    const leadStatus = await page.$eval(".scan-row .scan-status", (node) => node.textContent);
-    assert.match(leadStatus, /ยังไม่ยืนยัน/);
-    assert.equal(leadStatus.includes("กำลังส่ง"), false);
+    assert.equal(await page.$(".scan-row .scan-status"), null);
+    assert.equal(await page.$(".scan-row img"), null);
+    assert.equal(await page.$eval("[data-sort='spend']", (node) => node.getAttribute("aria-sort")), "descending");
     const nameStyle = await page.$eval(".scan-row .ad-name", (node) => {
       const style = getComputedStyle(node);
-      return { whiteSpace: style.whiteSpace, fontSize: style.fontSize };
+      return { whiteSpace: style.whiteSpace, fontSize: style.fontSize, title: node.title };
     });
-    assert.equal(nameStyle.whiteSpace, "normal");
-    assert.ok(parseFloat(nameStyle.fontSize) >= 16);
+    assert.equal(nameStyle.whiteSpace, "nowrap");
+    assert.ok(parseFloat(nameStyle.fontSize) >= 15);
+    assert.ok(nameStyle.title.length > 0);
+    const fullTotal = await page.$eval(".scan-total", (node) => node.textContent);
+    assert.match(fullTotal, /ไม่ใช่ยอดที่กรอง/);
+    assert.match(fullTotal, /34,890/);
+    await page.click("[data-sort='revenue']");
+    await page.waitForFunction(() => document.querySelector("[data-sort='revenue']").getAttribute("aria-sort") === "descending");
+    await page.$eval(".metric-min", (node) => { node.value = "1000"; });
+    await page.$eval(".metric-max", (node) => { node.value = "8000"; });
+    await page.click(".metric-filter button[type='submit']");
+    await page.waitForFunction(() => {
+      const count = document.querySelector(".scan-count").textContent;
+      return /^\d+\/33/.test(count) && !count.startsWith("33/");
+    });
+    const filteredCount = await page.$eval(".scan-count", (node) => node.textContent);
+    assert.match(filteredCount, /^\d+\/33/);
+    assert.match(await page.$eval(".scan-total", (node) => node.textContent), /34,890/);
     await page.screenshot({ path: "/opt/cursor/artifacts/mind-nov-book-1366.png" });
     await page.screenshot({ path: "/workspace/docs/progress/mind-nov-book-1366.png" });
     await page.setViewport({ width: 1024, height: 768 });
     await page.screenshot({ path: "/opt/cursor/artifacts/mind-nov-book-1024.png" });
     await page.screenshot({ path: "/workspace/docs/progress/mind-nov-book-1024.png" });
     await page.setViewport({ width: 1366, height: 768 });
-    for (const [book, file, images] of [["Trap", "trap-previews-1366", 10], ["Coworkers", "coworkers-previews-1366", 3], ["Mind", "mind-preview-1366", 1]]) {
-      await page.click(`[data-book='${book}']`);
-      await page.waitForSelector(".scan-row");
-      const kinds = await page.$$eval("[data-preview-kind]", (nodes) => nodes.map((node) => node.dataset.previewKind));
-      assert.equal(kinds.length, images);
-      if (book === "Trap") {
-        assert.ok(kinds.includes("video_cover"));
-        assert.ok(kinds.includes("ad_image"));
-      }
-      if (book === "Mind") assert.equal(await page.$$eval(".scan-row", (nodes) => nodes.length), 33);
-      const found = await page.evaluate(() => {
-        const image = document.querySelector(".scan-thumb img");
-        if (!image) return false;
-        image.scrollIntoView({ block: "center" });
-        return true;
-      });
-      assert.equal(found, true);
-      await page.screenshot({ path: `/opt/cursor/artifacts/${file}.png` });
-      await page.screenshot({ path: `/workspace/docs/progress/${file}.png` });
-    }
-    assert.match(await page.$eval(".scan-ph", (node) => node.textContent), /ยังไม่มีภาพเนื้อหาจากวิดีโอที่ยืนยันได้/);
+    await page.$eval(".metric-min", (node) => { node.value = "9"; });
+    await page.$eval(".metric-max", (node) => { node.value = "1"; });
+    await page.click(".metric-filter button[type='submit']");
+    await page.waitForSelector(".metric-filter-error");
+    assert.match(await page.$eval(".metric-filter-error", (node) => node.textContent), /มากกว่า/);
+    assert.equal(await page.$eval(".scan-count", (node) => node.textContent), filteredCount);
+    await page.click(".metric-reset");
+    await page.waitForFunction(() => document.querySelector(".scan-count").textContent === "33/33 แอด");
+    assert.equal(await page.$$eval(".scan-row", (nodes) => nodes.length), 33);
 
     await page.click("[data-book='Coworkers']");
     await page.waitForFunction(() => document.querySelector("h2").textContent.includes("1–7 พ.ย. 2569"));

@@ -1,10 +1,10 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261108t105";
-import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261108t105";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261108t105";
-import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261108t105";
-import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261108t105";
-import { contentBadge } from "/shared/status-labels.js?v=20261108t105";
-import { renderWeb } from "/web.js?v=20261108t105";
+import { analysisItemId } from "/shared/analysis.js?v=20261108t106";
+import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261108t106";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261108t106";
+import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261108t106";
+import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261108t106";
+import { contentBadge } from "/shared/status-labels.js?v=20261108t106";
+import { renderWeb } from "/web.js?v=20261108t106";
 
 const BOOKS = [
   { id: "Mind", name: "ถือไพ่เหนือกว่า", cls: "mind" },
@@ -42,6 +42,11 @@ const PERIOD_IDS = ["nov1_7", "oct", "sep", "aug", "jul", "jun", "may"];
 const adState = { period: "nov1_7", book: "", tag: "", sort: "revenue", q: "", page: 0, bodyKey: "", contentId: "all", statusId: "all" };
 let statusData = { ads_by_id: {}, summary: {} };
 let previewManifest = { coverage: "pending", ads: {} };
+let tableQuery = { sortKey: "spend", sortDir: "desc", filterKey: "spend", min: "", max: "", appliedKey: "spend", appliedMin: "", appliedMax: "", error: "" };
+
+function resetTableQuery() {
+  tableQuery = { sortKey: "spend", sortDir: "desc", filterKey: "spend", min: "", max: "", appliedKey: "spend", appliedMin: "", appliedMax: "", error: "" };
+}
 let webView = { view: "overview", book: "Mind", pages: {}, historyStart: 0 };
 
 function setWebView(patch) {
@@ -1374,6 +1379,11 @@ function showWeb() {
     statusId: adState.statusId,
     pages: webView.pages,
     previews: previewManifest,
+    query: tableQuery,
+    onQuery: (next) => {
+      tableQuery = next;
+      showWeb();
+    },
     historyStart: webView.historyStart || 0,
     onHistory: (start) => {
       webView.historyStart = start;
@@ -1383,6 +1393,7 @@ function showWeb() {
     drafts: analysisState.drafts,
     legacyNotes: Object.entries(noteState.notes || {}).map(([id, note]) => ({ id, text: note.text || "" })),
     onBook: (id) => {
+      resetTableQuery();
       setWebView({ view: "book", book: id });
       markNav();
       showWeb();
@@ -1545,6 +1556,7 @@ function bindWeb() {
   document.getElementById("report-period").addEventListener("change", (event) => {
     adState.period = event.target.value;
     adState.page = 0;
+    resetTableQuery();
     for (const key of Object.keys(webView.pages)) delete webView.pages[key];
     syncAsof();
     refreshViews();

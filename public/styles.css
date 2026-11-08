@@ -747,13 +747,20 @@ select:focus-visible,
 .scan-top h2 { margin: 2px 0 0; color: #1b2744; font-size: 22px; font-weight: 700; }
 .scan-count { margin: 2px 0 0; color: #31456f; font-size: 13px; }
 .scan-sheet { overflow: visible; }
+.scan-scroll { overflow: auto; max-height: none; }
 .scan-cols {
   display: grid;
-  grid-template-columns: 36px 72px minmax(240px, 2fr) 84px 92px minmax(120px, 1fr) 84px minmax(120px, 1fr) 64px 88px 64px 76px 108px;
-  column-gap: 10px;
+  grid-template-columns: 32px minmax(180px, 1.5fr) 84px 76px repeat(9, minmax(72px, 0.7fr)) 76px;
+  column-gap: 8px;
   align-items: center;
-  min-width: 1320px;
+  min-width: 1180px;
 }
+.metric-filter { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 8px; color: #31456f; font-size: 14px; }
+.metric-filter select, .metric-filter input { border: 1px solid #d5deea; border-radius: 8px; background: #fff; color: #1b2744; padding: 6px 8px; font: inherit; }
+.metric-filter button { border: 0; background: #fff; color: #1b2744; border-radius: 999px; min-height: 36px; padding: 6px 12px; }
+.metric-filter-error { margin: 0 0 8px; color: #9f1239; font-size: 14px; }
+.sort-key { border: 0; background: transparent; color: inherit; font: inherit; font-weight: 650; text-align: right; cursor: pointer; white-space: nowrap; padding: 0; }
+.scan-creator, .scan-content { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #31456f; font-size: 14px; }
 .scan-total {
   position: static;
   background: #e7eef8;
@@ -772,15 +779,20 @@ select:focus-visible,
   background: #f4f7fb;
   color: #31456f;
   font-size: 13px;
-  padding: 8px 8px 6px;
+  padding: 8px 0 6px;
 }
 .scan-row {
   background: #fff;
   border-radius: 14px;
-  padding: 12px;
-  margin-bottom: 8px;
-  align-items: start;
+  padding: 8px 0;
+  margin-bottom: 6px;
+  align-items: center;
 }
+.scan-head .scan-rank, .scan-row .scan-rank { position: sticky; left: 0; z-index: 3; background: #f4f7fb; }
+.scan-row .scan-rank { background: #fff; }
+.scan-head .scan-name, .scan-row .scan-name { position: sticky; left: 32px; z-index: 3; }
+.scan-head .scan-name { background: #f4f7fb; }
+.scan-row .scan-name { background: #fff; }
 .scan-rank { color: #8b95a8; font-weight: 600; }
 .scan-thumb, .scan-ph {
   width: 72px;
@@ -799,8 +811,9 @@ select:focus-visible,
 .scan-name .ad-name {
   display: block;
   width: 100%;
-  overflow: visible;
-  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 16px;
   line-height: 1.4;
   font-weight: 700;
