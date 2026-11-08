@@ -129,6 +129,7 @@ test("November overview and Mind book stay on the selected period", async () => 
     assert.ok(ticks.includes("พ.ค."));
     assert.equal(ticks.includes("พ.ย."), false);
     assert.equal(await page.$$eval(".period-row", (nodes) => nodes.length), 4);
+    assert.ok((await page.$$eval(".trend-y", (nodes) => nodes.length)) >= 2);
     await page.screenshot({ path: "/opt/cursor/artifacts/overview-nov-1366.png" });
     await page.screenshot({ path: "/workspace/docs/progress/overview-nov-1366.png" });
     await page.setViewport({ width: 1024, height: 768 });
@@ -183,6 +184,12 @@ test("November overview and Mind book stay on the selected period", async () => 
     assert.equal(await page.$(".scan-row .scan-status"), null);
     assert.equal(await page.$(".scan-row img"), null);
     assert.match(await page.$eval(".scatter-block .chart-note", (node) => node.textContent), /ไม่แปลว่ากำไร/);
+    const xTicks = await page.$$eval(".scatter-chart .x-tick", (nodes) => nodes.map((node) => node.textContent));
+    const yTicks = await page.$$eval(".scatter-chart .y-tick", (nodes) => nodes.map((node) => node.textContent));
+    assert.ok(xTicks.includes("฿0"));
+    assert.ok(xTicks.some((label) => /฿\d+k/.test(label)));
+    assert.ok(yTicks.some((label) => label === "0" || label.startsWith("0.")));
+    assert.equal(await page.$eval(".chart-base-label", (node) => node.textContent), "0.89");
     const picksBefore = await page.$$eval(".pick-btn.on", (nodes) => nodes.length);
     await page.click(".scatter-hit");
     await page.waitForSelector(".scan-row.is-located");

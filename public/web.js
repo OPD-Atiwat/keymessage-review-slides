@@ -1,13 +1,13 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261108t107";
-import { rates } from "/shared/metrics.js?v=20261108t107";
-import { comparisonRows } from "/shared/comparison.js?v=20261108t107";
-import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261108t107";
-import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261108t107";
-import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261108t107";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261108t107";
-import { OVERVIEW_METRICS, OVERVIEW_MONTHS, metricCell } from "/shared/history.js?v=20261108t107";
-import { filterAds, sortAds } from "/shared/ad-query.js?v=20261108t107";
-import { renderPeriodChart, renderScatter, renderTrendChart } from "/chart-view.js?v=20261108t107";
+import { analysisItemId } from "/shared/analysis.js?v=20261108t108";
+import { rates } from "/shared/metrics.js?v=20261108t108";
+import { comparisonRows } from "/shared/comparison.js?v=20261108t108";
+import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261108t108";
+import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261108t108";
+import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261108t108";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261108t108";
+import { OVERVIEW_METRICS, OVERVIEW_MONTHS, metricCell } from "/shared/history.js?v=20261108t108";
+import { filterAds, sortAds } from "/shared/ad-query.js?v=20261108t108";
+import { renderPeriodChart, renderScatter, renderTrendChart } from "/chart-view.js?v=20261108t108";
 
 const BOOKS = [
   ["Mind", "ถือไพ่เหนือกว่า"],

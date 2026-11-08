@@ -1,12 +1,14 @@
 import {
   CHART_METRICS,
   formatChartValue,
+  formatSpendTick,
   periodSeries,
   scatterLayout,
   scatterPoints,
+  trendScale,
   trendSegments,
   trendSeries,
-} from "/shared/chart-data.js?v=20261108t107";
+} from "/shared/chart-data.js?v=20261108t108";
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -31,19 +33,13 @@ export function renderTrendChart(parent, opts) {
   section.append(el("p", "chart-note", "จุดคือยอดรวมถ่วงน้ำหนักของเล่ม เส้นไม่ลากข้ามเดือนที่ไม่มีรายการ และไม่รวม 1–7 พ.ย."));
   const grid = el("div", "trend-grid");
   const all = opts.books.map(([id]) => trendSeries(opts.deck.bookTotals, id, metric.key));
-  const values = all.flat().map((point) => point.value).filter((value) => value != null);
-  let min = metric.zero ? 0 : Math.min(...values);
-  let max = Math.max(...values);
-  if (!Number.isFinite(min)) min = 0;
-  if (!Number.isFinite(max)) max = 1;
-  if (min === max) max = min + 1;
-  else if (!metric.zero) min -= (max - min) * 0.12;
-  max += (max - min) * 0.16;
+  const scale = trendScale(all.flat().map((point) => point.value), metric.zero);
+  section.append(el("p", "chart-note", `แกนตั้งใช้สเกลเดียวกันทุกเล่ม ${scale.ticks.map((value) => formatChartValue(metric.key, value)).join(" · ")}`));
   for (const [id, name] of opts.books) {
     const series = trendSeries(opts.deck.bookTotals, id, metric.key);
     const panel = el("article", "chart-panel");
     panel.append(el("h4", "", name));
-    panel.append(trendSvg(series, min, max, metric.key));
+    panel.append(trendSvg(series, scale, metric.key));
     panel.append(dataTable(series.map((point) => [point.short, formatChartValue(metric.key, point.value)])));
     grid.append(panel);
   }
@@ -82,7 +78,7 @@ export function renderPeriodChart(parent, opts) {
 
 export function renderScatter(parent, ads, baseline, opts) {
   const points = scatterPoints(ads);
-  const layout = scatterLayout(points, baseline, 640, 180);
+  const layout = scatterLayout(points, baseline, 640, 200);
   const section = el("section", "chart-block scatter-block");
   section.append(el("h3", "", "Spend กับ ROAS ของแอดในช่วงนี้"));
   section.append(el("p", "chart-note", `เส้นประคือ ROAS ยอดเล่มทั้งช่วง ${baseline == null ? "—" : baseline.toFixed(2)} ไม่ได้คำนวณจากแถวที่กรอง และสูงกว่าเส้นไม่แปลว่ากำไร`));
@@ -92,12 +88,23 @@ export function renderScatter(parent, ads, baseline, opts) {
   svg.append(svgEl("line", { x1: layout.padL, y1: layout.padT, x2: layout.padL, y2: layout.height - layout.padB, class: "chart-axis" }));
   if (layout.baseY != null) {
     svg.append(svgEl("line", { x1: layout.padL, y1: layout.baseY, x2: layout.width - layout.padR, y2: layout.baseY, class: "chart-base" }));
+    const baseLabel = svgEl("text", { x: layout.width - layout.padR + 4, y: layout.baseY + 4, class: "chart-base-label" });
+    baseLabel.textContent = baseline.toFixed(2);
+    svg.append(baseLabel);
   }
-  const xLabel = svgEl("text", { x: layout.width / 2, y: layout.height - 8, class: "chart-axis-label", "text-anchor": "middle" });
+  for (const tick of layout.xTicks) {
+    const label = svgEl("text", { x: tick.x, y: layout.height - layout.padB + 14, class: "chart-tick x-tick", "text-anchor": "middle" });
+    label.textContent = tick.label;
+    svg.append(label);
+  }
+  for (const tick of layout.yTicks) {
+    const label = svgEl("text", { x: layout.padL - 6, y: tick.y + 4, class: "chart-tick y-tick", "text-anchor": "end" });
+    label.textContent = tick.label;
+    svg.append(label);
+  }
+  const xLabel = svgEl("text", { x: layout.width / 2, y: layout.height - 4, class: "chart-axis-label", "text-anchor": "middle" });
   xLabel.textContent = "Spend";
-  const yLabel = svgEl("text", { x: 14, y: 14, class: "chart-axis-label" });
-  yLabel.textContent = "ROAS";
-  svg.append(xLabel, yLabel);
+  svg.append(xLabel);
   for (const dot of layout.dots) {
     const button = el("button", "scatter-hit");
     button.type = "button";
@@ -140,18 +147,26 @@ function metricSelect(opts) {
   return select;
 }
 
-function trendSvg(series, min, max, key) {
+function trendSvg(series, scale, key) {
   const width = 320;
-  const height = 128;
-  const padL = 8;
+  const height = 132;
+  const padL = 34;
   const padR = 36;
   const padT = 16;
   const padB = 22;
+  const min = scale.min;
+  const max = scale.max;
   const innerW = width - padL - padR;
   const innerH = height - padT - padB;
   const xOf = (index) => padL + (series.length === 1 ? innerW / 2 : (index / (series.length - 1)) * innerW);
   const yOf = (value) => padT + (1 - (value - min) / (max - min)) * innerH;
   const svg = svgEl("svg", { viewBox: `0 0 ${width} ${height}`, class: "chart trend-chart" });
+  for (const tick of [scale.ticks[0], scale.ticks[scale.ticks.length - 1]]) {
+    if (tick == null || tick < min || tick > max) continue;
+    const label = svgEl("text", { x: 2, y: yOf(tick) + 3, class: "chart-tick trend-y" });
+    label.textContent = key === "roas" ? formatChartValue(key, tick) : formatSpendTick(tick);
+    svg.append(label);
+  }
   for (const segment of trendSegments(series)) {
     if (segment.length < 2) continue;
     const d = segment.map((point) => {

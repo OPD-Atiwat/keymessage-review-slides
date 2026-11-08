@@ -705,7 +705,8 @@ select:focus-visible,
 .chart { width: 100%; height: auto; display: block; }
 .trend-line { fill: none; stroke: #1b2744; stroke-width: 2; }
 .trend-dot, .scatter-dot { fill: #1b2744; }
-.chart-tick, .chart-axis-label, .chart-value { fill: #1b2744; font-size: 11px; font-family: "IBM Plex Sans Thai", sans-serif; }
+.chart-tick, .chart-axis-label, .chart-value, .chart-base-label { fill: #1b2744; font-size: 12px; font-family: "IBM Plex Sans Thai", sans-serif; }
+.chart-base-label { fill: #0b6b38; font-weight: 650; }
 .chart-axis { stroke: #c5cedd; stroke-width: 1; }
 .chart-base { stroke: #0b6b38; stroke-width: 1.5; stroke-dasharray: 4 3; }
 .period-row { display: grid; grid-template-columns: 148px 1fr auto; gap: 8px; align-items: center; margin: 0 0 6px; }

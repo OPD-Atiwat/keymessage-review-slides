@@ -80,7 +80,30 @@ export function scatterPoints(ads) {
   });
 }
 
-export function scatterLayout(points, baseline, width = 640, height = 220) {
+export function niceStep(span, target = 4) {
+  const rough = Math.abs(span) / target || 1;
+  const pow = 10 ** Math.floor(Math.log10(rough));
+  return [1, 2, 2.5, 5, 10].map((multiplier) => multiplier * pow).find((step) => span / step <= target + 1) || rough;
+}
+
+export function formatSpendTick(value) {
+  if (value === 0) return "฿0";
+  if (value % 1000 === 0) return `฿${value / 1000}k`;
+  if (value >= 1000) return `฿${(value / 1000).toFixed(1)}k`;
+  return `฿${Math.round(value)}`;
+}
+
+export function axisTicks(min, max, target = 4) {
+  const step = niceStep(max - min, target);
+  const start = Math.ceil((min - step * 1e-9) / step) * step;
+  const ticks = [];
+  for (let value = start; value <= max + step * 1e-6; value += step) {
+    ticks.push(Number(value.toFixed(6)));
+  }
+  return ticks;
+}
+
+export function scatterLayout(points, baseline, width = 640, height = 200) {
   const plot = points.filter((point) => point.plot);
   const spends = plot.map((point) => point.spend);
   const roases = plot.map((point) => point.roas).concat(baseline == null ? [] : [baseline]);
@@ -95,14 +118,16 @@ export function scatterLayout(points, baseline, width = 640, height = 220) {
     yMin -= pad;
     yMax += pad;
   }
-  const padL = 44;
-  const padR = 16;
-  const padT = 18;
-  const padB = 32;
+  const padL = 46;
+  const padR = 42;
+  const padT = 16;
+  const padB = 36;
   const innerW = Math.max(1, width - padL - padR);
   const innerH = Math.max(1, height - padT - padB);
   const xOf = (spend) => padL + (spend / xMax) * innerW;
   const yOf = (roas) => padT + (1 - (roas - yMin) / (yMax - yMin)) * innerH;
+  const xTicks = axisTicks(0, xMax, 4).filter((value) => value >= 0 && value <= xMax + 1e-6);
+  const yTicks = axisTicks(yMin, yMax, 4);
   return {
     width,
     height,
@@ -113,7 +138,21 @@ export function scatterLayout(points, baseline, width = 640, height = 220) {
     xMax,
     yMin,
     yMax,
+    baseline,
     baseY: baseline == null ? null : yOf(baseline),
+    xTicks: xTicks.map((value) => ({ value, label: formatSpendTick(value), x: xOf(value) })),
+    yTicks: yTicks.map((value) => ({ value, label: Number(value.toFixed(2)).toString(), y: yOf(value) })),
     dots: plot.map((point) => ({ ...point, x: xOf(point.spend), y: yOf(point.roas) })),
   };
+}
+
+export function trendScale(values, zero) {
+  const finite = values.filter((value) => value != null && Number.isFinite(value));
+  let min = finite.length ? Math.min(...finite) : 0;
+  let max = finite.length ? Math.max(...finite) : 1;
+  if (zero) min = Math.min(0, min);
+  if (min === max) max = min + 1;
+  else if (!zero) min -= (max - min) * 0.12;
+  max += (max - min) * 0.16;
+  return { min, max, ticks: axisTicks(min, max, 3) };
 }

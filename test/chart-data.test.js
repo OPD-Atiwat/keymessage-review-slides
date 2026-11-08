@@ -8,6 +8,7 @@ import {
   bookMetric,
   formatChartValue,
   periodSeries,
+  formatSpendTick,
   scatterLayout,
   scatterPoints,
   trendSegments,
@@ -65,6 +66,26 @@ test("the selected-period chart uses that period only, and a scatter keeps the u
   const zero = scatterPoints([{ adId: "z", adName: "z", spend: 5, revenue: 0, impressions: 10, chats: 1, purchases: 0 }]);
   assert.equal(zero[0].roas, 0);
   assert.equal(zero[0].plot, true);
+  assert.ok(layout.xTicks.some((tick) => tick.label === "฿0"));
+  assert.ok(layout.xTicks.some((tick) => /฿\d+k/.test(tick.label)));
+  const spendTick = layout.xTicks.find((tick) => tick.value > 0);
+  const aligned = scatterLayout(scatterPoints([{
+    adId: "m",
+    adName: "m",
+    spend: spendTick.value,
+    revenue: spendTick.value,
+    impressions: 1000,
+    chats: 1,
+    purchases: 1,
+  }]), baseline);
+  const alignedTick = aligned.xTicks.find((tick) => tick.value === spendTick.value);
+  assert.equal(aligned.dots[0].x.toFixed(2), alignedTick.x.toFixed(2));
+  const zeroLayout = scatterLayout(zero, baseline);
+  const zeroTick = zeroLayout.yTicks.find((tick) => Math.abs(tick.value) < 1e-6);
+  assert.equal(zeroLayout.dots[0].y.toFixed(2), zeroTick.y.toFixed(2));
+  assert.ok(layout.dots.every((dot) => dot.x <= layout.width - layout.padR && dot.y >= layout.padT));
+  assert.equal(baseline.toFixed(2), "0.89");
+  assert.equal(formatSpendTick(2000), "฿2k");
   const missing = scatterPoints([{ adId: "n", adName: "n", spend: 0, revenue: 0, impressions: 0, chats: 0, purchases: 0 }]);
   assert.equal(missing[0].roas, null);
   assert.equal(missing[0].plot, false);
