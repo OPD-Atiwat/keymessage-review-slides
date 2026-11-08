@@ -6,8 +6,67 @@
   <title>วงคุย Key Message — ก.ย. ถึงต้น พ.ย. 2569</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
-<body>
+<body class="mode-web">
   <div id="boot-error" hidden>สไลด์แรกยังเปิดอยู่</div>
+  <header id="webnav">
+    <strong>วงคุย Key Message</strong>
+    <nav>
+      <button type="button" data-view="overview" class="on">ภาพรวมเดือน</button>
+      <button type="button" data-view="book" data-book="Mind">Mind</button>
+      <button type="button" data-view="book" data-book="Coworkers">ออฟฟิศ</button>
+      <button type="button" data-view="book" data-book="SurvivalGuide">Survival</button>
+      <button type="button" data-view="book" data-book="Trap">กับดัก</button>
+      <button type="button" data-view="ads">ตารางแอด</button>
+      <button type="button" data-view="present">สไลด์</button>
+    </nav>
+    <label>ผลลัพธ์ช่วง
+      <select id="report-period" aria-label="ผลลัพธ์ช่วง">
+        <option value="sep">ก.ย. ทั้งเดือน</option>
+        <option value="oct" selected>ต.ค. ทั้งเดือน</option>
+        <option value="oct1_7">1–7 ต.ค.</option>
+        <option value="nov1_7">1–7 พ.ย. ถึงวานนี้</option>
+      </select>
+    </label>
+    <label>Content เดือน
+      <select id="content-month" aria-label="Content เดือน">
+        <option value="all">ทั้งหมด</option>
+        <option value="unknown">ไม่ระบุเดือน Content</option>
+      </select>
+    </label>
+    <label>สถานะ 8 พ.ย. 11:39
+      <select id="status-filter" aria-label="สถานะบัญชีตอนตรวจ">
+        <option value="all">ทั้งหมด</option>
+        <option value="ACTIVE">เปิดใช้งาน (ยังไม่ยืนยันการส่งจริง)</option>
+        <option value="PAUSED">หยุดชั่วคราว</option>
+        <option value="ADSET_PAUSED">ชุดโฆษณาหยุดชั่วคราว</option>
+        <option value="WITH_ISSUES">มีปัญหา</option>
+      </select>
+    </label>
+    <label>ป้าย
+      <select id="creator-filter" data-filter="creator-filter" aria-label="ป้ายในชื่อแอด"></select>
+    </label>
+    <label>เรียง
+      <select id="sort-filter" data-filter="sort-filter" aria-label="เรียง">
+        <option value="revenue">รายได้ Meta</option>
+        <option value="spend">Spend</option>
+        <option value="roas">ROAS</option>
+        <option value="chats">แชท</option>
+        <option value="costPerMsg">บาท/แชท</option>
+        <option value="cpm">CPM</option>
+        <option value="purchases">ซื้อ</option>
+        <option value="cvr">ซื้อ÷แชท</option>
+        <option value="aov">AOV</option>
+      </select>
+    </label>
+    <button type="button" id="full">เต็มจอสไลด์</button>
+  </header>
+  <section id="web-panel">
+    <div id="web-main"></div>
+    <section class="slide-notes" data-notes-for="web-overview" aria-label="บันทึกภาพรวม">
+      <div class="notes-top"><strong>บันทึก</strong><span class="notes-status" data-notes-status>เข้าสู่ระบบเพื่อดูและแก้บันทึก</span></div>
+      <div class="notes-body" data-notes-body><p class="notes-guest">เข้าสู่ระบบเพื่อดูและแก้บันทึก</p></div>
+    </section>
+  </section>
   <div id="viewport">
     <div id="stage">
       <div id="deck">
@@ -235,7 +294,7 @@
         <option value="11">12 รอบนี้ข้อความแอดบอกอะไรได้ และอะไรยังต้องคุยต่อ</option>
       </select>
     </label>
-    <button type="button" id="full">เต็มจอ</button>
+    <button type="button" id="full-slide">เต็มจอ</button>
   </footer>
   <dialog id="method">
     <form method="dialog">

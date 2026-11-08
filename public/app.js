@@ -1,5 +1,7 @@
 import { rates, sumTotals, volumeFlag } from "/shared/metrics.js";
-import { MAX_NOTE, SLIDE_IDS } from "/shared/slides.js";
+import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js";
+import { contentBadge } from "/shared/status-labels.js";
+import { renderWeb } from "/web.js";
 
 const BOOKS = [
   { id: "Mind", name: "ถือไพ่เหนือกว่า", cls: "mind" },
@@ -30,7 +32,9 @@ const slides = [...deckEl.querySelectorAll(".slide")];
 let deck = null;
 let index = 0;
 let userMoved = false;
-const adState = { period: "nov1_7", book: "", tag: "", sort: "revenue", q: "", page: 0, bodyKey: "" };
+const adState = { period: "oct", book: "", tag: "", sort: "revenue", q: "", page: 0, bodyKey: "", contentId: "all", statusId: "all" };
+let statusData = { ads_by_id: {}, summary: {} };
+let webView = { view: "overview", book: "Mind" };
 const noteState = {
   configured: false,
   reason: "",
@@ -291,6 +295,11 @@ function filteredAds() {
     if (adState.book && ad.book !== adState.book) return false;
     if (adState.tag && ad.creatorTag !== adState.tag) return false;
     if (adState.bodyKey && ad.bodyKey !== adState.bodyKey) return false;
+    const record = statusData.ads_by_id[ad.adId];
+    const content = record?.content_month || "unknown";
+    if (adState.contentId === "unknown" && content !== "unknown") return false;
+    if (adState.contentId !== "all" && adState.contentId !== "unknown" && content !== adState.contentId && content !== "unknown") return false;
+    if (adState.statusId !== "all" && record && record.effective_status !== adState.statusId) return false;
     if (!q) return true;
     return `${ad.adName} ${ad.body} ${ad.creatorTag} ${ad.adId}`.toLowerCase().includes(q);
   });
@@ -334,51 +343,6 @@ function renderAds() {
   const mount = document.querySelector('[data-mount="s10-ads"]');
   if (!mount || !deck) return;
   mount.replaceChildren();
-  const filters = el("div", "filters");
-  filters.append(select("ช่วง", PERIODS.map((item) => [item.id, item.label]), adState.period, (value) => {
-    adState.period = value;
-    adState.page = 0;
-    renderAdPage(mount);
-  }));
-  filters.append(select("เล่ม", [["", "ทุกเล่ม"], ...BOOKS.map((book) => [book.id, book.name])], adState.book, (value) => {
-    adState.book = value;
-    adState.page = 0;
-    renderAdPage(mount);
-  }));
-  const tags = [...new Set(deck.ads.map((ad) => ad.creatorTag))].sort((a, b) => a.localeCompare(b, "th"));
-  filters.append(select("ป้าย", [["", "ทุกป้าย"], ...tags.map((tag) => [tag, tag])], adState.tag, (value) => {
-    adState.tag = value;
-    adState.page = 0;
-    renderAdPage(mount);
-  }, "creator-filter"));
-  filters.append(select("เรียง", SORTS, adState.sort, (value) => {
-    adState.sort = value;
-    adState.page = 0;
-    renderAdPage(mount);
-  }, "sort-filter"));
-  const searchLabel = el("label", "", "ค้น");
-  const search = document.createElement("input");
-  search.type = "search";
-  search.value = adState.q;
-  search.setAttribute("aria-label", "ค้นชื่อแอดหรือข้อความ");
-  search.addEventListener("input", () => {
-    adState.q = search.value;
-    adState.page = 0;
-    renderAdPage(mount);
-  });
-  searchLabel.append(search);
-  filters.append(searchLabel);
-  if (adState.bodyKey) {
-    const clear = el("button", "ghost", "ล้างตัวกรองข้อความ");
-    clear.type = "button";
-    clear.addEventListener("click", () => {
-      adState.bodyKey = "";
-      adState.page = 0;
-      renderAds();
-    });
-    filters.append(clear);
-  }
-  mount.append(filters);
   const results = el("div", "ad-results");
   mount.append(results);
   renderAdPage(mount);
@@ -835,8 +799,9 @@ function fileInput(id) {
 }
 
 function paintNotes() {
-  for (const id of SLIDE_IDS) {
-    const region = document.querySelector(`[data-notes-for="${id}"]`);
+  for (const region of document.querySelectorAll("[data-notes-for]")) {
+    const id = region.dataset.notesFor;
+    if (!NOTE_IDS.includes(id)) continue;
     const body = region.querySelector("[data-notes-body]");
     body.replaceChildren();
     if (!noteState.configured) {
@@ -1064,10 +1029,15 @@ function bindChrome() {
   $("#next").addEventListener("click", () => show(index + 1, true));
   $("#jump").addEventListener("change", (event) => show(Number(event.target.value), true));
   $("#full").addEventListener("click", () => {
+    document.body.classList.add("mode-present");
+    document.body.classList.remove("mode-web");
+    document.querySelectorAll("#webnav button[data-view]").forEach((button) => button.classList.toggle("on", button.dataset.view === "present"));
+    const target = document.getElementById("viewport");
     if (document.fullscreenElement) document.exitFullscreen();
-    else document.documentElement.requestFullscreen().catch(() => {});
+    else target.requestFullscreen().catch(() => {});
   });
   document.addEventListener("keydown", (event) => {
+    if (!document.body.classList.contains("mode-present")) return;
     if (editableTarget(event.target)) return;
     if (event.key === "ArrowRight" || event.key === "PageDown") {
       event.preventDefault();
@@ -1085,12 +1055,102 @@ function bindChrome() {
   });
 }
 
+function showWeb() {
+  const root = document.getElementById("web-main");
+  if (!root || !deck) return;
+  renderWeb(root, {
+    deck,
+    status: statusData,
+    view: webView.view,
+    book: webView.book,
+    reportId: adState.period,
+    contentId: adState.contentId,
+    statusId: adState.statusId,
+    onBook: (id) => {
+      webView = { view: "book", book: id };
+      document.querySelectorAll("#webnav button[data-view]").forEach((button) => {
+        button.classList.toggle("on", button.dataset.view === "book" && button.dataset.book === id);
+      });
+      showWeb();
+    },
+  });
+}
+
+function bindWeb() {
+  document.querySelectorAll("#webnav button[data-view]").forEach((button) => {
+    button.addEventListener("click", () => {
+      webView = { view: button.dataset.view, book: button.dataset.book || webView.book };
+      document.querySelectorAll("#webnav button[data-view]").forEach((item) => {
+        const on = item.dataset.view === webView.view && (item.dataset.view !== "book" || item.dataset.book === webView.book);
+        item.classList.toggle("on", on);
+      });
+      document.body.classList.toggle("mode-present", webView.view === "present");
+      document.body.classList.toggle("mode-web", webView.view !== "present");
+      if (webView.view !== "present") showWeb();
+    });
+  });
+  document.getElementById("report-period").addEventListener("change", (event) => {
+    adState.period = event.target.value;
+    adState.page = 0;
+    refreshViews();
+  });
+  document.getElementById("content-month").addEventListener("change", (event) => {
+    adState.contentId = event.target.value;
+    adState.page = 0;
+    refreshViews();
+  });
+  document.getElementById("status-filter").addEventListener("change", (event) => {
+    adState.statusId = event.target.value;
+    adState.page = 0;
+    refreshViews();
+  });
+  document.getElementById("creator-filter").addEventListener("change", (event) => {
+    adState.tag = event.target.value;
+    adState.page = 0;
+    refreshViews();
+  });
+  document.getElementById("sort-filter").addEventListener("change", (event) => {
+    adState.sort = event.target.value;
+    adState.page = 0;
+    refreshViews();
+  });
+}
+
+function refreshViews() {
+  const mount = document.querySelector('[data-mount="s10-ads"] .ad-results') ? document.querySelector('[data-mount="s10-ads"]') : null;
+  if (mount) renderAdPage(mount);
+  if (document.body.classList.contains("mode-web")) showWeb();
+}
+
+function fillFilters() {
+  const months = new Set();
+  for (const record of Object.values(statusData.ads_by_id || {})) {
+    if (record.content_month) months.add(record.content_month);
+  }
+  const content = document.getElementById("content-month");
+  for (const month of [...months].sort()) {
+    const option = document.createElement("option");
+    option.value = month;
+    option.textContent = month + " จากชื่อแอด";
+    content.append(option);
+  }
+  const creator = document.getElementById("creator-filter");
+  creator.append(new Option("ทุกป้าย", ""));
+  for (const tag of [...new Set(deck.ads.map((ad) => ad.creatorTag))].sort((a, b) => a.localeCompare(b, "th"))) {
+    creator.append(new Option(tag, tag));
+  }
+}
+
 async function init() {
   bindChrome();
+  bindWeb();
   const response = await fetch("/data/deck.json");
   if (!response.ok) throw new Error("โหลดข้อมูลสไลด์ไม่ได้");
   deck = await response.json();
+  statusData = await fetch("/data/ad-status.json").then((item) => item.json());
+  fillFilters();
   renderAll();
+  showWeb();
   deckEl.classList.add("ready");
   show(initialIndex(), false);
   deckEl.dataset.hydrated = "1";

@@ -17,6 +17,9 @@ export const SLIDE_IDS = [
   "s12-synthesis",
 ];
 
+export const WEB_NOTE_IDS = ["web-overview", "web-book", "web-ads"];
+export const NOTE_IDS = [...SLIDE_IDS, ...WEB_NOTE_IDS];
+
 /** Old creator-ranking deck IDs, kept so an explicit import still lands on a slide. */
 export const LEGACY_TO_SLIDE = {
   "s01-conclusions": "s01-axis",
@@ -63,7 +66,7 @@ export function mapImportedNotes(doc) {
     if (note.text.length > MAX_NOTE) throw new Error("บันทึกยาวเกิน: " + key);
     if (note.text.includes("\u0000")) throw new Error("บันทึกมีอักขระต้องห้าม: " + key);
     let target = null;
-    if (SLIDE_IDS.includes(key)) target = key;
+    if (NOTE_IDS.includes(key)) target = key;
     else if (Object.prototype.hasOwnProperty.call(LEGACY_TO_SLIDE, key)) target = LEGACY_TO_SLIDE[key];
     else throw new Error("ไม่รู้จักสไลด์: " + key);
     if (!buckets.has(target)) buckets.set(target, []);

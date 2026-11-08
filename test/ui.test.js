@@ -100,6 +100,7 @@ test("slides, inline notes, and ad controls at both viewports", async () => {
     await page.setViewport({ width: 1024, height: 554 });
     await page.goto(origin, { waitUntil: "networkidle0" });
     await page.waitForSelector("#deck[data-hydrated='1']");
+    await page.click("[data-view='present']");
     assert.equal(new URL(page.url()).hash, "");
     assert.equal(new URL(page.url()).search, "");
     let box = await fit(page);
@@ -158,6 +159,7 @@ test("slides, inline notes, and ad controls at both viewports", async () => {
     await fresh.setViewport({ width: 1366, height: 768 });
     await fresh.goto(origin, { waitUntil: "networkidle0" });
     await fresh.waitForSelector("#deck[data-hydrated='1']");
+    await fresh.click("[data-view='present']");
     assert.equal((await fresh.content()).includes(marker), false);
     await fresh.type(".slide.active input[type=password]", password);
     await fresh.click(".slide.active .notes-login button");

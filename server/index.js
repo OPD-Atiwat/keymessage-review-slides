@@ -3,7 +3,7 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
-import { DECK_ID, MAX_NOTE, SLIDE_IDS, mapImportedNotes } from "../shared/slides.js";
+import { DECK_ID, MAX_NOTE, NOTE_IDS, mapImportedNotes } from "../shared/slides.js";
 import {
   COOKIE,
   clientIp,
@@ -177,7 +177,7 @@ function validText(text) {
 async function listNotes() {
   const result = await pool.query(
     "SELECT slide_id, body, revision, updated_at FROM notes WHERE slide_id = ANY($1::text[])",
-    [SLIDE_IDS]
+    [NOTE_IDS]
   );
   const notes = {};
   for (const row of result.rows) {
@@ -344,7 +344,7 @@ async function handleApi(req, res, url) {
       return send(res, 429, { error: "บันทึกถี่เกิน ลองอีกครั้ง", saved: false });
     }
     const slideId = put[1];
-    if (!SLIDE_IDS.includes(slideId)) return send(res, 400, { error: "ไม่รู้จักสไลด์", saved: false });
+    if (!NOTE_IDS.includes(slideId)) return send(res, 400, { error: "ไม่รู้จักสไลด์", saved: false });
     if (req.headers["x-csrf-token"] !== session.csrf) {
       return send(res, 403, { error: "คำขอแก้บันทึกไม่ผ่านการตรวจ", saved: false });
     }
