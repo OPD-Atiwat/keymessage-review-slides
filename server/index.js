@@ -151,6 +151,7 @@ async function initDb() {
       created_at timestamptz NOT NULL,
       PRIMARY KEY (item_id, revision)
     )`);
+    await next.query(`ALTER TABLE analysis_picks ADD COLUMN IF NOT EXISTS hidden boolean NOT NULL DEFAULT false`);
     if (auth.state === "pending") {
       const ready = await ensureRuntimeAuth(next);
       if (!ready.ok) {
@@ -368,7 +369,7 @@ function mapAnalysis(row) {
 async function listAnalysis() {
   const result = await pool.query(
     `SELECT item_id, ad_id, report_period, book, content_month, content_month_label, note, revision, updated_at
-     FROM analysis_picks ORDER BY updated_at DESC`
+     FROM analysis_picks WHERE hidden = false ORDER BY updated_at DESC`
   );
   const items = {};
   for (const row of result.rows) items[row.item_id] = mapAnalysis(row);
@@ -387,11 +388,22 @@ async function selectAnalysis(adId, reportPeriod) {
   const contentMonth = record?.content_month || "unknown";
   const contentMonthLabel = record?.content_month_label || "ไม่ระบุเดือน Content";
   const existing = await pool.query(
-    `SELECT item_id, ad_id, report_period, book, content_month, content_month_label, note, revision, updated_at
+    `SELECT item_id, ad_id, report_period, book, content_month, content_month_label, note, revision, updated_at, hidden
      FROM analysis_picks WHERE item_id = $1`,
     [itemId]
   );
-  if (existing.rows[0]) return { status: 200, item: mapAnalysis(existing.rows[0]) };
+  if (existing.rows[0]) {
+    if (existing.rows[0].hidden) {
+      const restored = await pool.query(
+        `UPDATE analysis_picks SET hidden = false
+         WHERE item_id = $1
+         RETURNING item_id, ad_id, report_period, book, content_month, content_month_label, note, revision, updated_at`,
+        [itemId]
+      );
+      return { status: 200, item: mapAnalysis(restored.rows[0]) };
+    }
+    return { status: 200, item: mapAnalysis(existing.rows[0]) };
+  }
   const inserted = await pool.query(
     `INSERT INTO analysis_picks
       (item_id, ad_id, report_period, book, content_month, content_month_label, note, revision, updated_at)
@@ -461,8 +473,8 @@ async function deleteAnalysis(itemId, confirm) {
   const row = current.rows[0];
   if (!row) return { missing: true };
   if (String(row.note || "").trim() && confirm !== true) return { needsConfirm: true, item: mapAnalysis(row) };
-  await pool.query("DELETE FROM analysis_picks WHERE item_id = $1", [itemId]);
-  return { deleted: true };
+  await pool.query("UPDATE analysis_picks SET hidden = true WHERE item_id = $1", [itemId]);
+  return { hidden: true };
 }
 
 const server = createServer(async (req, res) => {

@@ -1,11 +1,11 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261109t117";
-import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261109t117";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261109t117";
-import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261109t117";
-import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261109t117";
-import { contentBadge } from "/shared/status-labels.js?v=20261109t117";
-import { renderWeb } from "/web.js?v=20261109t117";
-import { defaultCreatorDir } from "/shared/creator-rank.js?v=20261109t117";
+import { analysisItemId } from "/shared/analysis.js?v=20261109t118";
+import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261109t118";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261109t118";
+import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261109t118";
+import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261109t118";
+import { contentBadge } from "/shared/status-labels.js?v=20261109t118";
+import { renderWeb } from "/web.js?v=20261109t118";
+import { defaultCreatorDir } from "/shared/creator-rank.js?v=20261109t118";
 
 const BOOKS = [
   { id: "Mind", name: "ถือไพ่เหนือกว่า", cls: "mind" },
@@ -1547,7 +1547,10 @@ async function saveAnalysis(itemId, text) {
   const item = analysisState.items[itemId];
   if (!item || !noteState.authed) return;
   const status = document.querySelector(`[data-analysis-status="${itemId}"]`);
-  if (status) status.textContent = "กำลังบันทึก…";
+  if (status) {
+    status.className = "analysis-status is-saving";
+    status.textContent = "กำลังบันทึก…";
+  }
   const response = await fetch("/api/analysis/" + encodeURIComponent(itemId), {
     method: "PUT",
     headers: { "content-type": "application/json", "x-csrf-token": noteState.csrf },
@@ -1556,16 +1559,32 @@ async function saveAnalysis(itemId, text) {
   const data = await response.json().catch(() => ({}));
   if (response.status === 409 && data.item) {
     analysisState.items[itemId] = data.item;
-    if (status) status.textContent = "มีฉบับใหม่กว่าบนเซิร์ฟเวอร์ — ยังไม่ได้เขียนทับ";
+    if (status) {
+      status.className = "analysis-status is-error";
+      status.textContent = "มีฉบับใหม่กว่าบนเซิร์ฟเวอร์ — ยังไม่ได้เขียนทับ";
+    }
     return;
   }
   if (!response.ok || !data.saved) {
-    if (status) status.textContent = data.error || "บันทึกไม่สำเร็จ — ข้อความยังอยู่ในช่องนี้";
+    if (status) {
+      status.className = "analysis-status is-error";
+      status.replaceChildren(document.createTextNode(data.error || "บันทึกไม่สำเร็จ ข้อความยังอยู่ในช่องนี้"));
+      const retry = document.createElement("button");
+      retry.type = "button";
+      retry.className = "analysis-retry";
+      retry.textContent = "ลองอีกครั้ง";
+      retry.addEventListener("click", () => saveAnalysis(itemId, text));
+      status.append(retry);
+    }
     return;
   }
   analysisState.items[itemId] = data.item;
   if (analysisState.drafts[itemId] === data.item.text) delete analysisState.drafts[itemId];
-  if (status) status.textContent = "บันทึกแล้ว · " + formatTime(data.item.updatedAt);
+  if (status) {
+    const clock = new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(data.item.updatedAt));
+    status.className = "analysis-status is-saved";
+    status.textContent = `บันทึกแล้ว ${clock}`;
+  }
 }
 
 async function removeAnalysis(itemId) {
@@ -1574,7 +1593,7 @@ async function removeAnalysis(itemId) {
   const text = (analysisState.drafts[itemId] ?? item.text ?? "").trim();
   let confirmDelete = false;
   if (text) {
-    confirmDelete = window.confirm("รายการนี้มีบันทึกวิเคราะห์ เอาออกจากรายการหรือไม่");
+    confirmDelete = window.confirm("เอาออกจากรายการที่แสดงหรือไม่ บันทึกจะไม่ถูกลบ และจะกลับมาเมื่อเลือกแอดนี้อีกครั้ง");
     if (!confirmDelete) return;
   }
   const response = await fetch("/api/analysis/" + encodeURIComponent(itemId), {
@@ -1584,7 +1603,7 @@ async function removeAnalysis(itemId) {
   });
   const data = await response.json().catch(() => ({}));
   if (response.status === 409 && data.needsConfirm) {
-    if (!window.confirm("รายการนี้มีบันทึกวิเคราะห์ เอาออกจากรายการหรือไม่")) return;
+    if (!window.confirm("เอาออกจากรายการที่แสดงหรือไม่ บันทึกจะไม่ถูกลบ และจะกลับมาเมื่อเลือกแอดนี้อีกครั้ง")) return;
     const retry = await fetch("/api/analysis/" + encodeURIComponent(itemId), {
       method: "DELETE",
       headers: { "content-type": "application/json", "x-csrf-token": noteState.csrf },
@@ -1761,6 +1780,16 @@ function fillFilters() {
     content.append(option);
   }
 }
+
+window.addEventListener("beforeunload", (event) => {
+  const dirty = Object.entries(analysisState.drafts).some(([id, text]) => {
+    const item = analysisState.items[id];
+    return item && text !== (item.text || "");
+  });
+  if (!dirty) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
 
 async function init() {
   document.body.classList.add("mode-web");

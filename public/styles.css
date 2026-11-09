@@ -1371,3 +1371,57 @@ body.mode-web #detail-pick {
   color: #1E2A5A;
 }
 body.mode-web #detail-pick.on { background: #DCFCE7; color: #166534; }
+body.mode-web .analysis-card {
+  display: block;
+  background: #fff;
+  border: 1px solid #ECE9F7;
+  border-radius: 16px;
+  padding: 20px;
+  margin: 0 0 16px;
+  box-shadow: inset 4px 0 0 #86EFAC;
+}
+body.mode-web .analysis-card .analysis-name {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: #1E1B4B;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  max-width: none;
+}
+body.mode-web .analysis-context { margin: 0 0 12px; color: #6B6890; font-size: 13px; }
+body.mode-web .analysis-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0 0 16px; }
+body.mode-web .analysis-metrics span { display: flex; flex-direction: column; gap: 2px; min-width: 0; background: #F6F4FC; border-radius: 10px; padding: 10px 12px; }
+body.mode-web .analysis-metrics small { color: #6B6890; font-size: 12px; font-weight: 500; }
+body.mode-web .analysis-metrics b { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; color: #1E1B4B; }
+body.mode-web .analysis-metrics .tone-better b { color: #15803D; }
+body.mode-web .analysis-metrics .tone-worse b { color: #B91C1C; }
+body.mode-web .analysis-metrics .tone-near b, body.mode-web .analysis-metrics .tone-plain b { color: #4B4870; }
+body.mode-web .analysis-note {
+  width: 100%;
+  min-height: 160px;
+  box-sizing: border-box;
+  border: 1px solid #DDD8F3;
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #fff;
+  color: #1E1B4B;
+  font-size: 15px;
+  line-height: 1.6;
+  resize: vertical;
+  overflow: hidden;
+}
+body.mode-web .analysis-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+body.mode-web .analysis-save { height: 40px; border: 0; border-radius: 10px; padding: 0 16px; background: #1E2A5A; color: #fff; font-weight: 600; }
+body.mode-web .analysis-remove { height: 40px; border: 1px solid #DDD8F3; border-radius: 10px; padding: 0 14px; background: #fff; color: #4B4870; }
+body.mode-web .analysis-status { margin: 8px 0 0; font-size: 14px; font-weight: 600; }
+body.mode-web .analysis-status.is-dirty { color: #B45309; }
+body.mode-web .analysis-status.is-saving { color: #4B4870; }
+body.mode-web .analysis-status.is-saved { color: #15803D; }
+body.mode-web .analysis-status.is-error { color: #B91C1C; }
+body.mode-web .analysis-retry { margin-left: 8px; height: 32px; border: 1px solid #B91C1C; border-radius: 8px; background: #fff; color: #B91C1C; }
+@media (max-width: 720px) {
+  body.mode-web .analysis-metrics { grid-template-columns: 1fr 1fr; }
+}

@@ -1,15 +1,15 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261109t117";
-import { rates } from "/shared/metrics.js?v=20261109t117";
-import { comparisonRows } from "/shared/comparison.js?v=20261109t117";
-import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261109t117";
-import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261109t117";
-import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261109t117";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261109t117";
-import { OVERVIEW_METRICS, OVERVIEW_MONTHS, formatMetric, metricCell } from "/shared/history.js?v=20261109t117";
-import { overviewCondition, periodAdBaseline, conditionTone, readMetric } from "/shared/condition.js?v=20261109t117";
-import { mergeAdsByName } from "/shared/ad-merge.js?v=20261109t117";
-import { contentMonthOptions, filterByContentMonth } from "/shared/content-month.js?v=20261109t117";
-import { filterAds, sortAds } from "/shared/ad-query.js?v=20261109t117";
+import { analysisItemId } from "/shared/analysis.js?v=20261109t118";
+import { rates } from "/shared/metrics.js?v=20261109t118";
+import { comparisonRows } from "/shared/comparison.js?v=20261109t118";
+import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261109t118";
+import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261109t118";
+import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261109t118";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261109t118";
+import { OVERVIEW_METRICS, OVERVIEW_MONTHS, formatMetric, metricCell } from "/shared/history.js?v=20261109t118";
+import { overviewCondition, periodAdBaseline, conditionTone, readMetric } from "/shared/condition.js?v=20261109t118";
+import { mergeAdsByName } from "/shared/ad-merge.js?v=20261109t118";
+import { contentMonthOptions, filterByContentMonth } from "/shared/content-month.js?v=20261109t118";
+import { filterAds, sortAds } from "/shared/ad-query.js?v=20261109t118";
 import {
   CREATOR_METRICS,
   UNKNOWN_LABEL,
@@ -20,8 +20,8 @@ import {
   reconcileCreators,
   sortCreators,
   unknownCreator,
-} from "/shared/creator-rank.js?v=20261109t117";
-import { renderPeriodChart, renderScatter, renderTrendChart } from "/chart-view.js?v=20261109t117";
+} from "/shared/creator-rank.js?v=20261109t118";
+import { renderPeriodChart, renderScatter, renderTrendChart } from "/chart-view.js?v=20261109t118";
 
 const BOOKS = [
   ["Mind", "ถือไพ่เหนือกว่า"],
@@ -848,46 +848,100 @@ function renderAnalysis(root, opts) {
 
 function analysisCard(item, opts) {
   const ad = (opts.deck.ads || []).find((row) => row.adId === item.adId && row.period === item.reportPeriod);
-  const card = el("article", "analysis-card is-picked");
+  const card = el("article", "analysis-card");
   card.dataset.analysis = item.itemId;
-  const media = el("div", "scan-ph", "");
-  const body = el("div", "analysis-body");
-  const title = el("h3", "ad-name", ad ? ad.adName : item.adId);
+  const title = el("h3", "analysis-name", ad ? ad.adName : item.adId);
   title.title = ad ? ad.adName : item.adId;
-  body.append(title);
-  body.append(el("p", "analysis-context", [
+  card.append(title);
+  const creator = ad?.creatorTag ? ad.creatorTag : "ไม่ทราบ Creator";
+  const content = ad ? contentBadge((opts.status.ads_by_id || {})[ad.adId]) : { id: item.contentMonth || "unknown" };
+  card.append(el("p", "analysis-context", [
     BOOK_LABEL[item.book] || item.book,
-    item.contentMonthLabel || "ไม่ระบุเดือน Content",
+    creator,
+    content.id === "unknown" ? "ไม่ระบุเดือน" : content.id,
     "ผลลัพธ์ช่วง " + (PERIOD_LABEL[item.reportPeriod] || item.reportPeriod),
   ].join(" · ")));
-  if (ad) body.append(metricLine(ad));
+  if (ad) card.append(analysisMetrics(ad, opts.deck.bookTotals));
   else {
     const reason = opts.deck.exclusionReasons?.[item.adId];
     const why = item.reportPeriod === "oct1_7"
       ? "ไม่มีช่วง 1–7 ต.ค. ในชุดที่ยืนยันรอบนี้"
       : (reason || "ไม่ได้อยู่ในรายการที่ยืนยันเล่มได้ช่วงนี้");
-    body.append(el("p", "analysis-excluded", `ไม่รวมยอด: ${why}`));
+    card.append(el("p", "analysis-excluded", `ไม่รวมยอด: ${why}`));
   }
   const area = document.createElement("textarea");
   area.className = "analysis-note";
   area.maxLength = 20000;
   area.placeholder = "วิเคราะห์ต่อยอดจากข้อความนี้";
   area.setAttribute("aria-label", "บันทึกวิเคราะห์");
-  area.value = Object.prototype.hasOwnProperty.call(opts.drafts || {}, item.itemId) ? opts.drafts[item.itemId] : (item.text || "");
-  const status = el("p", "analysis-status", item.text ? "บันทึกแล้ว" : "ยังไม่มีบันทึกวิเคราะห์");
+  const savedText = item.text || "";
+  area.value = Object.prototype.hasOwnProperty.call(opts.drafts || {}, item.itemId) ? opts.drafts[item.itemId] : savedText;
+  const status = el("p", "analysis-status", "");
   status.dataset.analysisStatus = item.itemId;
+  const paint = (kind, text) => {
+    status.className = "analysis-status is-" + kind;
+    status.textContent = text;
+  };
+  const savedClock = item.updatedAt ? analysisClock(item.updatedAt) : "";
+  if (area.value !== savedText) paint("dirty", "ยังไม่บันทึก");
+  else if (savedText) paint("saved", savedClock ? `บันทึกแล้ว ${savedClock}` : "บันทึกแล้ว");
+  else paint("empty", "ยังไม่มีบันทึก");
+  const grow = () => {
+    area.style.height = "auto";
+    area.style.height = Math.max(160, area.scrollHeight) + "px";
+  };
   area.addEventListener("input", () => {
+    grow();
     opts.onDraft(item.itemId, area.value);
-    status.textContent = "มีการแก้ไขที่ยังไม่บันทึก";
+    paint("dirty", "ยังไม่บันทึก");
     clearTimeout(timers[item.itemId]);
     timers[item.itemId] = setTimeout(() => opts.onSave(item.itemId, area.value), 700);
+  });
+  const save = el("button", "analysis-save", "บันทึก");
+  save.type = "button";
+  save.addEventListener("click", () => {
+    clearTimeout(timers[item.itemId]);
+    opts.onSave(item.itemId, area.value);
   });
   const remove = el("button", "analysis-remove", "เอาออกจากรายการ");
   remove.type = "button";
   remove.addEventListener("click", () => opts.onRemove(item.itemId));
-  body.append(area, status, remove);
-  card.append(media, body);
+  const actions = el("div", "analysis-actions");
+  actions.append(save, remove);
+  card.append(area, actions, status);
+  queueMicrotask(grow);
   return card;
+}
+
+function analysisClock(iso) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(date);
+}
+
+function analysisMetrics(ad, bookTotals) {
+  const base = periodAdBaseline(bookTotals?.[ad.period]?.[ad.book]);
+  const rate = rates(ad);
+  const shown = {
+    spend: baht(ad.spend),
+    revenue: baht(ad.revenue),
+    roas: rate.roas == null ? "—" : rate.roas.toFixed(2),
+    chats: num(ad.chats),
+    costPerMsg: rate.costPerMsg == null ? "—" : baht(rate.costPerMsg),
+    cpm: rate.cpm == null ? "—" : baht(rate.cpm),
+    purchases: num(ad.purchases),
+    cvrProxy: rate.cvrProxy == null ? "—" : (rate.cvrProxy * 100).toFixed(1) + "%",
+    aov: rate.aov == null ? "—" : baht(rate.aov),
+  };
+  const labels = { chats: "Messages", costPerMsg: "Cost per Message", cvrProxy: "CVR" };
+  const grid = el("div", "analysis-metrics");
+  for (const [key, label] of QUERY_METRICS) {
+    const tone = conditionTone(key, readMetric(ad, key), base ? base[key] : null);
+    const cell = el("span", "tone-" + tone);
+    cell.append(el("small", "", labels[key] || label), el("b", "", shown[key]));
+    grid.append(cell);
+  }
+  return grid;
 }
 
 const timers = {};

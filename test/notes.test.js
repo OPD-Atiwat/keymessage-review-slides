@@ -334,6 +334,13 @@ test("selected message keeps its note across a new session and a restart", async
     assert.equal(removed.status, 200);
     const after = await fetch(origin + "/api/analysis", { headers: { cookie: session.cookie } });
     assert.equal(Object.keys((await after.json()).items).length, 0);
+    const restored = await fetch(origin + "/api/analysis/select", {
+      method: "POST",
+      headers: { origin, "content-type": "application/json", cookie: session.cookie, "x-csrf-token": session.csrf },
+      body: JSON.stringify({ adId: ad.adId, reportPeriod: "oct" }),
+    });
+    assert.equal(restored.status, 200);
+    assert.equal((await restored.json()).item.text, marker);
     const still = await fetch(origin + "/api/notes", { headers: { cookie: session.cookie } });
     assert.equal((await still.json()).notes["s12-synthesis"].text, "บันทึกเก่าที่ยังอยู่");
   } finally {
