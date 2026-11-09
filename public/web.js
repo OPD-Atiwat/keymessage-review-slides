@@ -1,12 +1,12 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261109t111";
-import { rates } from "/shared/metrics.js?v=20261109t111";
-import { comparisonRows } from "/shared/comparison.js?v=20261109t111";
-import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261109t111";
-import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261109t111";
-import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261109t111";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261109t111";
-import { OVERVIEW_METRICS, OVERVIEW_MONTHS, formatMetric, metricCell } from "/shared/history.js?v=20261109t111";
-import { filterAds, sortAds } from "/shared/ad-query.js?v=20261109t111";
+import { analysisItemId } from "/shared/analysis.js?v=20261109t112";
+import { rates } from "/shared/metrics.js?v=20261109t112";
+import { comparisonRows } from "/shared/comparison.js?v=20261109t112";
+import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261109t112";
+import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261109t112";
+import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261109t112";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261109t112";
+import { OVERVIEW_METRICS, OVERVIEW_MONTHS, formatMetric, metricCell } from "/shared/history.js?v=20261109t112";
+import { filterAds, sortAds } from "/shared/ad-query.js?v=20261109t112";
 import {
   CREATOR_METRICS,
   UNKNOWN_LABEL,
@@ -17,8 +17,8 @@ import {
   reconcileCreators,
   sortCreators,
   unknownCreator,
-} from "/shared/creator-rank.js?v=20261109t111";
-import { renderPeriodChart, renderScatter, renderTrendChart } from "/chart-view.js?v=20261109t111";
+} from "/shared/creator-rank.js?v=20261109t112";
+import { renderPeriodChart, renderScatter, renderTrendChart } from "/chart-view.js?v=20261109t112";
 
 const BOOKS = [
   ["Mind", "ถือไพ่เหนือกว่า"],
@@ -512,47 +512,51 @@ function renderCreator(root, opts) {
   select.value = metric.key;
   select.addEventListener("change", () => opts.onCreatorMetric(select.value));
   metricLabel.append(select);
-  const dir = el("button", "creator-dir", sort.dir === "asc" ? "น้อยไปมาก" : "มากไปน้อย");
+  const dirText = sort.dir === "asc" ? "น้อยไปมาก" : "มากไปน้อย";
+  const dir = el("button", "creator-dir", dirText);
   dir.type = "button";
   dir.setAttribute("aria-pressed", "true");
   dir.addEventListener("click", () => opts.onCreatorSort(metric.key));
   controls.append(metricLabel, dir);
-  root.append(controls);
 
-  root.append(el("p", "creator-note", `${scopeName} · ${reportLabel(opts.reportId)} · ${sort.dir === "asc" ? "น้อยไปมาก" : "มากไปน้อย"} · ไม่ใช่อันดับคนเก่ง`));
-  root.append(el("p", "creator-note", scope === "all"
-    ? "รวม 4 เล่มที่ยืนยันแล้ว สินค้าไม่เหมือนกัน การเทียบในเล่มเดียวชัดกว่า"
-    : "เทียบในเล่มนี้เล่มเดียว"));
+  const caption = el("div", "page-caption");
+  caption.append(el("p", "creator-note", `${scopeName} · ${reportLabel(opts.reportId)} · เรียงตาม ${metric.label} ${dirText}`));
+  const method = el("details", "history-method");
+  method.append(el("summary", "", "วิธีนับ"));
   const cover = coverage.total === 0
     ? "ไม่มีรายการที่ยืนยันได้"
     : coverage.blank === 0
       ? `ช่วงนี้มีป้าย Creator ครบ ${coverage.tagged} จาก ${coverage.total} แอด ไม่ได้เดาชื่อเพิ่ม`
       : `ช่วงนี้มีป้าย Creator ${coverage.tagged} จาก ${coverage.total} แอด อีก ${coverage.blank} แอดไม่มีป้ายในชุดนี้ จึงอยู่กลุ่มไม่ทราบ Creator ไม่ได้เดาจากชื่อแอด`;
-  root.append(el("p", "creator-note", cover));
-  if (check.ok && coverage.total > 0) {
-    root.append(el("p", "creator-note", "ยอดทุกป้าย รวมกลุ่มไม่ทราบ Creator เท่ากับยอดชุดนี้ในช่วงที่เลือก"));
-  }
+  method.append(el("p", "creator-note", [
+    scope === "all" ? "รวม 4 เล่มที่ยืนยันแล้ว สินค้าไม่เหมือนกัน การเทียบในเล่มเดียวชัดกว่า" : "เทียบในเล่มนี้เล่มเดียว",
+    "ไม่ใช่อันดับคนเก่ง",
+    cover,
+    check.ok && coverage.total > 0 ? "ยอดทุกป้าย รวมกลุ่มไม่ทราบ Creator เท่ากับยอดชุดนี้ในช่วงที่เลือก" : "",
+    "จัดตามป้าย Creator ที่เก็บไว้ในชุดนี้ ไม่ได้เดาจากวงเล็บในชื่อแอด. Central, Central+Leef, Central+Park และ Central+Phum เป็นคนละแถว. ป้ายร่วมอยู่แถวเดียว ไม่ได้แบ่งยอดให้หลายคน. การจัดกลุ่มไม่ใช่สาเหตุของยอด และไม่ใช่ยอดขายทั้งธุรกิจ. Revenue คือ omni_purchase. CVR คือ Purchases ÷ Messages. พ.ค.–ส.ค. มีแอดที่ไม่มีป้าย ส่วน ก.ย., ต.ค. และ 1–7 พ.ย. มีป้ายครบในชุดนี้.",
+  ].filter(Boolean).join(" ")));
+  caption.append(method);
+  root.append(caption);
 
   if (!ranked.length && !unknown) {
     root.append(el("p", "history-help", "ไม่มีรายการที่ยืนยันได้"));
     return;
   }
 
-  root.append(creatorChart(ranked, metric, opts));
+  root.append(creatorChart(ranked, metric, opts, controls));
   root.append(creatorTable(ranked, metric, sort, opts));
   if (unknown) root.append(unknownBlock(unknown, opts));
   if (opts.creatorFocus != null) root.append(creatorAds(groups, opts));
 
-  const method = el("details", "history-method");
-  method.append(el("summary", "", "วิธีจัดกลุ่ม"));
-  method.append(el("p", "creator-note", "จัดตามป้าย Creator ที่เก็บไว้ในชุดนี้ ไม่ได้เดาจากวงเล็บในชื่อแอด. Central, Central+Leef, Central+Park และ Central+Phum เป็นคนละแถว. ป้ายร่วมอยู่แถวเดียว ไม่ได้แบ่งยอดให้หลายคน. การจัดกลุ่มไม่ใช่สาเหตุของยอด และไม่ใช่ยอดขายทั้งธุรกิจ. Revenue คือ omni_purchase. CVR คือ Purchases ÷ Messages. พ.ค.–ส.ค. มีแอดที่ไม่มีป้าย ส่วน ก.ย., ต.ค. และ 1–7 พ.ย. มีป้ายครบในชุดนี้."));
-  root.append(method);
 }
 
 /** Provisional bars only. Replace this view when the data and design review lands. The table is the figure of record. */
-function creatorChart(ranked, metric, opts) {
+function creatorChart(ranked, metric, opts, controls) {
   const section = el("section", "chart-block creator-chart");
-  section.append(el("h3", "", `${metric.label} ของแต่ละ Creator`));
+  const head = el("div", "chart-head");
+  head.append(el("h3", "", `${metric.label} ของแต่ละ Creator`));
+  if (controls) head.append(controls);
+  section.append(head);
   const finite = ranked.map((row) => row[metric.key]).filter((value) => value != null && Number.isFinite(Number(value)));
   const max = finite.length ? Math.max(...finite.map(Number)) : 0;
   if (!ranked.length) {
@@ -841,7 +845,7 @@ function openDetail(ad, record, opts) {
   detailReturn = document.activeElement;
   const bookId = ad.book || opts.book;
   dialog.dataset.book = bookId || "";
-  document.getElementById("detail-strip").style.background = BOOK_COLOR[bookId] || "#5B5BD6";
+  dialog.style.borderTopColor = BOOK_COLOR[bookId] || "#5B5BD6";
   document.getElementById("detail-name").textContent = ad.adName;
   const content = contentBadge(record);
   document.getElementById("detail-meta").textContent = [

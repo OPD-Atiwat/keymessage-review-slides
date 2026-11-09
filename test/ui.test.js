@@ -294,7 +294,7 @@ test("November overview and Mind book stay on the selected period", async () => 
     await page.waitForSelector(".creator-table");
     assert.match(await page.$eval("h2", (node) => node.textContent), /เรียงตาม Spend/);
     assert.equal(await page.$eval("[data-creator-scope='all']", (node) => node.getAttribute("aria-pressed")), "true");
-    assert.match(await page.$eval("body", (node) => node.innerText), /สินค้าไม่เหมือนกัน/);
+    assert.match(await page.$eval("body", (node) => node.textContent), /สินค้าไม่เหมือนกัน/);
     await page.screenshot({ path: "/opt/cursor/artifacts/creator-overall-1366.png" });
     await page.screenshot({ path: "/workspace/docs/progress/creator-overall-1366.png" });
     await page.click("[data-creator-scope='Mind']");
@@ -336,7 +336,7 @@ test("November overview and Mind book stay on the selected period", async () => 
     await page.click("[data-creator-scope='all']");
     await page.select("#report-period", "may");
     await page.waitForFunction(() => document.body.innerText.includes("ไม่ทราบ Creator"));
-    assert.match(await page.$eval("body", (node) => node.innerText), /ไม่ได้เดาจากชื่อแอด/);
+    assert.match(await page.$eval("body", (node) => node.textContent), /ไม่ได้เดาจากชื่อแอด/);
     await page.select("#report-period", "nov1_7");
     await page.waitForSelector(".creator-row");
     await page.setViewport({ width: 1024, height: 768 });

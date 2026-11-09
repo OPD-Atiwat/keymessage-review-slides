@@ -1,11 +1,11 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261109t111";
-import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261109t111";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261109t111";
-import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261109t111";
-import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261109t111";
-import { contentBadge } from "/shared/status-labels.js?v=20261109t111";
-import { renderWeb } from "/web.js?v=20261109t111";
-import { defaultCreatorDir } from "/shared/creator-rank.js?v=20261109t111";
+import { analysisItemId } from "/shared/analysis.js?v=20261109t112";
+import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261109t112";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261109t112";
+import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261109t112";
+import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261109t112";
+import { contentBadge } from "/shared/status-labels.js?v=20261109t112";
+import { renderWeb } from "/web.js?v=20261109t112";
+import { defaultCreatorDir } from "/shared/creator-rank.js?v=20261109t112";
 
 const BOOKS = [
   { id: "Mind", name: "ถือไพ่เหนือกว่า", cls: "mind" },

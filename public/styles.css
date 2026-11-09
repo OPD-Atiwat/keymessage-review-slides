@@ -1226,28 +1226,46 @@ body.mode-web .metric-scroll, body.mode-web .creator-table-wrap { border: 0; box
 body.mode-web #zoom {
   width: min(720px, calc(100vw - 32px));
   max-width: 720px;
+  height: fit-content;
+  max-height: calc(100vh - 32px);
+  margin: auto;
   border: 0;
+  border-top: 4px solid #1E2A5A;
   border-radius: 20px;
   padding: 28px;
   background: #fff;
   color: #1E1B4B;
+  overflow: auto;
   box-shadow: 0 24px 64px rgba(30, 27, 75, .18);
 }
 body.mode-web #zoom::backdrop { background: rgba(30, 27, 75, .35); backdrop-filter: blur(4px); }
-body.mode-web #zoom form { position: relative; padding-top: 8px; }
-body.mode-web .detail-strip { position: absolute; left: -28px; right: -28px; top: -28px; height: 4px; border-radius: 20px 20px 0 0; }
+body.mode-web #zoom form {
+  position: relative;
+  width: auto;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  border: 0;
+  overflow: visible;
+}
+body.mode-web .detail-strip { display: none; }
 body.mode-web .detail-close {
   position: absolute;
-  top: -8px;
-  right: -8px;
+  top: 0;
+  right: 0;
   width: 44px;
   height: 44px;
   min-height: 44px;
+  margin: 0;
   padding: 0;
+  border: 0;
   border-radius: 12px;
   background: #F6F4FC;
   color: #1E1B4B;
   font-size: 20px;
+  text-decoration: none;
 }
 body.mode-web #zoom h2 { font-size: 20px; font-weight: 700; line-height: 1.35; max-height: 2.7em; overflow: hidden; padding-right: 48px; }
 body.mode-web #detail-meta { color: #6B6890; font-size: 13px; }
@@ -1273,5 +1291,12 @@ body.mode-web #detail-note { margin-top: 12px; padding-top: 12px; border-top: 1p
   body.mode-web .trend-grid, body.mode-web .hero-main { grid-template-columns: 1fr; }
   body.mode-web .hero-rest, body.mode-web #detail-metrics { grid-template-columns: 1fr 1fr; }
   body.mode-web .period-row, body.mode-web .creator-bar { grid-template-columns: 1fr; }
-  body.mode-web #zoom { width: 100vw; max-width: 100vw; margin: auto 0 0; border-radius: 20px 20px 0 0; }
+  body.mode-web #zoom {
+    width: 100vw;
+    max-width: 100vw;
+    height: fit-content;
+    max-height: 92vh;
+    margin: auto 0 0;
+    border-radius: 20px 20px 0 0;
+  }
 }
