@@ -4,19 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ผลโฆษณารายเล่ม</title>
-  <link rel="stylesheet" href="/styles.css?v=20261109t110">
+  <link rel="stylesheet" href="/styles.css?v=20261109t111">
 </head>
 <body class="mode-web">
   <div id="boot-error" hidden></div>
   <header id="webnav">
-    <strong>ผลโฆษณารายเล่ม</strong>
+    <div class="brand"><span class="logo-dot" aria-hidden="true"></span><strong>ผลโฆษณารายเล่ม</strong></div>
     <nav>
       <button type="button" data-view="overview" class="on" aria-pressed="true" aria-current="page">ภาพรวม</button>
       <button type="button" data-view="book" aria-pressed="false">รายเล่ม</button>
       <button type="button" data-view="creator" aria-pressed="false">Creator</button>
       <button type="button" data-view="analysis" aria-pressed="false">วิเคราะห์ต่อยอด</button>
     </nav>
-    <label>ผลลัพธ์ช่วง
+    <label class="range-chip">ช่วง
       <select id="report-period" class="is-current" aria-label="ผลลัพธ์ช่วง">
         <option value="nov1_7" selected>1–7 พ.ย. 2569</option>
         <option value="oct">ต.ค. 2569</option>
@@ -26,8 +26,8 @@
         <option value="jun">มิ.ย. 2569</option>
         <option value="may">พ.ค. 2569</option>
       </select>
+      <span id="asof" class="asof">ถึง 7 พ.ย. 2569</span>
     </label>
-    <span id="asof" class="asof">ถึง 7 พ.ย. 2569</span>
   </header>
   <section id="web-panel">
     <div id="web-stage">
@@ -36,15 +36,16 @@
   </section>
   <dialog id="zoom" aria-labelledby="detail-name">
     <form method="dialog">
+      <span id="detail-strip" class="detail-strip"></span>
+      <button class="detail-close" type="submit" value="cancel" aria-label="ปิด">✕</button>
       <h2 id="detail-name"></h2>
       <p id="detail-meta"></p>
       <div id="detail-metrics"></div>
       <p id="detail-source"></p>
       <p id="detail-note"></p>
-      <button class="detail-close" type="submit" value="cancel">ปิด</button>
     </form>
   </dialog>
-  <script src="/boot.js?v=20261109t110"></script>
-  <script type="module" src="/app.js?v=20261109t110"></script>
+  <script src="/boot.js?v=20261109t111"></script>
+  <script type="module" src="/app.js?v=20261109t111"></script>
 </body>
 </html>

@@ -9,8 +9,15 @@ import {
   trendScale,
   trendSegments,
   trendSeries,
-} from "/shared/chart-data.js?v=20261109t110";
-import { metricCell } from "/shared/history.js?v=20261109t110";
+} from "/shared/chart-data.js?v=20261109t111";
+import { metricCell } from "/shared/history.js?v=20261109t111";
+
+const BOOK_COLOR = {
+  Mind: "#1E2A5A",
+  Coworkers: "#5B5BD6",
+  SurvivalGuide: "#8B6FE8",
+  Trap: "#B9A7F5",
+};
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -32,7 +39,7 @@ export function renderTrendChart(parent, opts) {
   head.append(el("h3", "", `${metric.label} แต่ละเล่ม · พ.ค.–ต.ค. 2569`));
   head.append(metricSelect(opts));
   section.append(head);
-  section.append(el("p", "chart-note", "เดือนเต็ม พ.ค.–ต.ค. ใช้สเกลเดียวกัน เริ่มที่ 0 เส้นไม่ลากข้ามเดือนที่ไม่มีรายการ และไม่รวม 1–7 พ.ย. ไม่ได้เทียบเดือนก่อน เพราะชุดข้อมูลปิดการเทียบนี้ไว้ทุกช่วง"));
+  section.append(el("p", "chart-note", "พ.ค.–ต.ค. สเกลเดียวกัน เริ่มที่ 0 ไม่รวม 1–7 พ.ย. และไม่ได้เทียบเดือนก่อน"));
   const readout = el("p", "scatter-readout", "เลือกจุดเพื่อดูเดือน Spend และ Revenue");
   const grid = el("div", "trend-grid");
   const all = opts.books.map(([id]) => trendSeries(opts.deck.bookTotals, id, metric.key));
@@ -46,14 +53,19 @@ export function renderTrendChart(parent, opts) {
     }));
     const latest = metricCell(opts.deck.bookTotals, "oct", id, metric.key);
     const panel = el("article", "chart-panel");
+    panel.dataset.series = id;
     const title = el("div", "trend-panel-head");
-    title.append(el("h4", "", name));
+    const heading = el("h4", "", name);
+    heading.prepend(bookDot(id));
+    title.append(heading);
     const now = el("p", "trend-now");
-    now.append(el("b", "cell-neutral", latest.text));
+    const figure = el("b", "cell-neutral", latest.text);
+    figure.style.color = id === "Trap" ? "#6D55D9" : BOOK_COLOR[id];
+    now.append(figure);
     now.append(el("span", "", "ต.ค. 2569"));
     title.append(now);
     panel.append(title);
-    panel.append(trendSvg(series, scale, metric, readout, (periodId) => opts.onInspect && opts.onInspect(id, periodId)));
+    panel.append(trendSvg(series, scale, metric, BOOK_COLOR[id], readout, (periodId) => opts.onInspect && opts.onInspect(id, periodId)));
     grid.append(panel);
     tableRows.push([name, ...series.map((point) => formatChartValue(metric.key, point.value))]);
   }
@@ -79,41 +91,37 @@ export function renderPeriodChart(parent, opts) {
   head.append(el("h3", "", `${metric.label} ของ 4 เล่ม · ${opts.periodLabel}`));
   head.append(metricSelect(opts));
   section.append(head);
-  const partial = opts.reportId === "nov1_7" ? `${opts.periodLabel} ไม่ใช่เดือนเต็ม. ` : "";
+  const partial = opts.reportId === "nov1_7" ? `${opts.periodLabel} ไม่เต็มเดือน. ` : "";
   const note = metric.key === "revenue"
     ? partial + "รายได้ที่ Meta นับให้แอด (omni_purchase) ไม่ใช่ยอดขาย BEP และไม่ใช่เกณฑ์กำไร"
     : partial + "แท่งเริ่มที่ 0 เรียงตามเมตริกที่เลือก ไม่ได้บอกว่าเล่มไหนกำไร";
   section.append(el("p", "chart-note", note));
   const finite = series.map((item) => item.value).filter((value) => value != null && Number.isFinite(value));
-  const axisMax = finite.length ? Math.max(...finite) : 1;
   const scale = trendScale(finite.length ? finite : [0], metric.key);
   const list = el("div", "period-chart");
-  const axis = el("div", "period-axis");
-  axis.append(el("span", "period-axis-gap", ""));
-  const ticks = el("span", "period-axis-ticks");
-  for (const tick of scale.ticks) {
-    const mark = el("span", "", formatAxisTick(metric.key, tick));
-    mark.style.left = `${axisMax === 0 ? 0 : (tick / scale.max) * 100}%`;
-    ticks.append(mark);
-  }
-  axis.append(ticks);
-  list.append(axis);
   for (const item of series) {
     const row = el("button", "period-row");
     row.type = "button";
+    row.dataset.book = item.id;
     row.addEventListener("click", () => opts.onInspect && opts.onInspect(item.id, opts.reportId));
     const name = el("span", "period-name", item.name);
-    if (opts.reportId === "nov1_7") name.append(el("small", "period-partial", "ไม่เต็มเดือน"));
+    name.prepend(bookDot(item.id));
     row.append(name);
     const slot = el("span", "period-slot");
     const share = item.value == null || scale.max === 0 ? 0 : Math.max(0, item.value / scale.max);
-    slot.style.setProperty("--p", String(share));
-    slot.append(el("i", "period-bar"));
-    slot.append(el("span", "period-value", formatChartValue(metric.key, item.value)));
+    const track = el("span", "period-track");
+    const bar = el("i", "period-bar");
+    bar.style.setProperty("--p", String(share));
+    bar.style.background = BOOK_COLOR[item.id] || "#1E2A5A";
+    track.append(bar);
+    const end = el("span", "period-end");
+    end.append(el("b", "period-value", formatChartValue(metric.key, item.value)));
     if (metric.key !== "spend") {
       const spend = bookMetric(opts.deck.bookTotals?.[opts.reportId]?.[item.id], "spend");
-      slot.append(el("span", "period-spend", `Spend ${formatChartValue("spend", spend)}`));
+      end.append(el("span", "period-spend", `Spend ${formatChartValue("spend", spend)}`));
     }
+    track.append(end);
+    slot.append(track);
     row.append(slot);
     list.append(row);
   }
@@ -130,12 +138,15 @@ export function renderScatter(parent, ads, baseline, opts) {
   section.append(el("p", "chart-note", `เส้นประคือ ROAS ทั้งเล่ม ${baseline == null ? "—" : baseline.toFixed(2)} จากยอดที่ไม่ได้กรอง จุดสีกรมท่าอยู่เหนือเส้น จุดสีลาเวนเดอร์อยู่ใต้เส้น และสูงกว่าเส้นไม่แปลว่ากำไร`));
   const host = el("div", "scatter-host");
   const svg = svgEl("svg", { viewBox: `0 0 ${layout.width} ${layout.height}`, class: "chart scatter-chart", role: "img" });
-  svg.append(svgEl("line", { x1: layout.padL, y1: layout.height - layout.padB, x2: layout.width - layout.padR, y2: layout.height - layout.padB, class: "chart-axis" }));
-  svg.append(svgEl("line", { x1: layout.padL, y1: layout.padT, x2: layout.padL, y2: layout.height - layout.padB, class: "chart-axis" }));
-  if (layout.baseY != null) {
-    svg.append(svgEl("line", { x1: layout.padL, y1: layout.baseY, x2: layout.width - layout.padR, y2: layout.baseY, class: "chart-base" }));
-    const labelY = layout.baseY < layout.padT + 16 ? layout.baseY + 14 : layout.baseY - 6;
-    const baseLabel = svgEl("text", { x: layout.padL + 6, y: labelY, class: "chart-base-label" });
+  const bookId = opts?.book || "Mind";
+  const bookColor = BOOK_COLOR[bookId] || "#1E2A5A";
+  const display = scatterDisplay(layout);
+  if (display.baseY != null) {
+    svg.append(svgEl("line", { x1: layout.padL, y1: display.baseY, x2: layout.width - layout.padR, y2: display.baseY, class: "chart-base" }));
+    const labelY = Math.max(layout.padT + 14, display.baseY - 8);
+    const chip = svgEl("rect", { x: layout.padL + 4, y: labelY - 12, width: 118, height: 16, rx: 4, class: "chart-base-chip" });
+    svg.append(chip);
+    const baseLabel = svgEl("text", { x: layout.padL + 8, y: labelY, class: "chart-base-label" });
     baseLabel.textContent = `ROAS ทั้งเล่ม ${baseline.toFixed(2)}`;
     svg.append(baseLabel);
   }
@@ -144,7 +155,7 @@ export function renderScatter(parent, ads, baseline, opts) {
     label.textContent = tick.label;
     svg.append(label);
   }
-  for (const tick of layout.yTicks) {
+  for (const tick of display.yTicks) {
     const label = svgEl("text", { x: layout.padL - 6, y: tick.y + 4, class: "chart-tick y-tick", "text-anchor": "end" });
     label.textContent = tick.label;
     svg.append(label);
@@ -159,27 +170,45 @@ export function renderScatter(parent, ads, baseline, opts) {
   for (const dot of layout.dots) {
     const button = el("button", "scatter-hit");
     button.type = "button";
-    button.style.left = `${(dot.x / layout.width) * 100}%`;
-    button.style.top = `${(dot.y / layout.height) * 100}%`;
+    const shown = display.place(dot);
+    button.style.left = `${(shown.x / layout.width) * 100}%`;
+    button.style.top = `${(shown.y / layout.height) * 100}%`;
     button.dataset.adId = dot.adId;
     button.setAttribute("aria-label", `${dot.name} Spend ${formatChartValue("spend", dot.spend)} Revenue ${formatChartValue("revenue", dot.revenue)} Messages ${formatChartValue("chats", dot.chats)} Purchases ${formatChartValue("purchases", dot.purchases)} ROAS ${formatChartValue("roas", dot.roas)}`);
     button.addEventListener("click", () => locateRow(dot.adId));
     button.addEventListener("focus", () => showReadout(readout, dot));
     host.append(button);
     const above = baseline != null && dot.roas >= baseline;
-    svg.append(svgEl("circle", { cx: dot.x, cy: dot.y, r: 4, class: above || baseline == null ? "scatter-dot" : "scatter-dot below" }));
+    const circle = svgEl("circle", {
+      cx: shown.x,
+      cy: shown.y,
+      r: 4,
+      class: above || baseline == null ? "scatter-dot" : "scatter-dot below",
+      fill: above || baseline == null ? bookColor : "#EDE9FE",
+      stroke: bookColor,
+      "stroke-width": above || baseline == null ? (bookId === "Trap" ? 1 : 0) : 1.5,
+      "fill-opacity": "0.9",
+    });
+    circle.dataset.adId = dot.adId;
+    svg.append(circle);
+    if (shown.pinned) {
+      const flag = svgEl("text", { x: shown.x + 6, y: shown.y + 4, class: "scatter-callout" });
+      flag.textContent = formatChartValue("roas", dot.roas);
+      svg.append(flag);
+    }
   }
   const placed = [];
   for (const dot of labeled) {
-    let x = dot.x + 8;
-    let y = dot.y - 8;
+    const shown = display.place(dot);
+    let x = shown.x + 8;
+    let y = shown.y - 8;
     let anchor = "start";
     if (x > layout.width - 70) {
-      x = dot.x - 8;
+      x = shown.x - 8;
       anchor = "end";
     }
     if (placed.some((item) => Math.abs(item.x - x) < 48 && Math.abs(item.y - y) < 14)) y += 14;
-    if (y < 12) y = dot.y + 14;
+    if (y < 12) y = shown.y + 14;
     placed.push({ x, y });
     const text = svgEl("text", { x, y, class: "scatter-callout", "text-anchor": anchor });
     text.textContent = dot.creator || "ไม่มีป้าย";
@@ -215,12 +244,62 @@ function metricSelect(opts) {
   return select;
 }
 
-function trendSvg(series, scale, metric, readout, onPoint) {
+function bookDot(bookId) {
+  const dot = el("i", "book-dot");
+  dot.style.background = BOOK_COLOR[bookId] || "#5B5BD6";
+  return dot;
+}
+
+function scatterDisplay(layout) {
+  const roas = layout.dots.map((dot) => dot.roas).filter((value) => Number.isFinite(value)).sort((a, b) => a - b);
+  const rank = roas.length ? Math.min(roas.length - 1, Math.max(0, Math.ceil(roas.length * 0.9) - 1)) : 0;
+  const cap = Math.max((roas[rank] || 1) * 1.3, layout.baseline || 0, 0.5);
+  const top = layout.padT + 12;
+  const bottom = layout.height - layout.padB;
+  const yOf = (value) => bottom - (Math.max(0, Math.min(value, cap)) / cap) * (bottom - top);
+  return {
+    cap,
+    baseY: layout.baseline == null ? null : yOf(layout.baseline),
+    yTicks: [0, cap / 2, cap].map((value) => ({ y: yOf(value), label: Number(value.toFixed(2)).toString() })),
+    place(dot) {
+      const pinned = dot.roas > cap + 1e-6;
+      let x = dot.x;
+      let y = pinned ? top : yOf(dot.roas);
+      if (dot.spend < 200 && dot.roas < 0.2) {
+        let n = 0;
+        for (const ch of String(dot.adId)) n = (n + ch.charCodeAt(0)) % 3;
+        x += (n - 1) * 3;
+        y += ((n + 1) % 3 - 1) * 3;
+      }
+      return { x, y, pinned };
+    },
+  };
+}
+
+function shownTicks(ticks) {
+  if (ticks.length <= 4) return ticks;
+  const last = ticks.length - 1;
+  return [0, Math.round(last / 3), Math.round((last * 2) / 3), last].map((index) => ticks[index]);
+}
+
+function curvePath(points) {
+  if (!points.length) return "";
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const left = points[i];
+    const right = points[i + 1];
+    const mid = (left.x + right.x) / 2;
+    d += ` C ${mid} ${left.y}, ${mid} ${right.y}, ${right.x} ${right.y}`;
+  }
+  return d;
+}
+
+function trendSvg(series, scale, metric, color, readout, onPoint) {
   const width = 320;
-  const height = 160;
+  const height = 140;
   const padL = 36;
-  const padR = 28;
-  const padT = 16;
+  const padR = 18;
+  const padT = 12;
   const padB = 22;
   const min = scale.min;
   const max = scale.max;
@@ -229,27 +308,47 @@ function trendSvg(series, scale, metric, readout, onPoint) {
   const xOf = (index) => padL + (series.length === 1 ? innerW / 2 : (index / (series.length - 1)) * innerW);
   const yOf = (value) => padT + (1 - (value - min) / (max - min || 1)) * innerH;
   const svg = svgEl("svg", { viewBox: `0 0 ${width} ${height}`, class: "chart trend-chart" });
-  for (const tick of scale.ticks) {
+  const gradId = `trend-${color.slice(1)}`;
+  const defs = svgEl("defs", {});
+  const grad = svgEl("linearGradient", { id: gradId, x1: "0", y1: "0", x2: "0", y2: "1" });
+  grad.append(svgEl("stop", { offset: "0%", "stop-color": color, "stop-opacity": "0.18" }));
+  grad.append(svgEl("stop", { offset: "100%", "stop-color": color, "stop-opacity": "0" }));
+  defs.append(grad);
+  svg.append(defs);
+  for (const tick of shownTicks(scale.ticks)) {
     const y = yOf(tick);
     svg.append(svgEl("line", { x1: padL, y1: y, x2: width - padR, y2: y, class: "trend-gridline" }));
     const label = svgEl("text", { x: 2, y: y + 3, class: "chart-tick trend-y" });
     label.textContent = formatAxisTick(metric.key, tick);
     svg.append(label);
   }
+  const lastId = [...series].reverse().find((point) => point.value != null)?.id;
   for (const segment of trendSegments(series)) {
     if (segment.length < 2) continue;
-    const d = segment.map((point) => {
+    const spots = segment.map((point) => {
       const index = series.findIndex((item) => item.id === point.id);
-      return `${xOf(index)},${yOf(point.value)}`;
-    }).join(" ");
-    svg.append(svgEl("polyline", { points: d, class: "trend-line" }));
+      return { x: xOf(index), y: yOf(point.value) };
+    });
+    const d = curvePath(spots);
+    const floor = height - padB;
+    svg.append(svgEl("path", { d: `${d} L ${spots[spots.length - 1].x} ${floor} L ${spots[0].x} ${floor} Z`, fill: `url(#${gradId})`, stroke: "none" }));
+    svg.append(svgEl("path", { d, fill: "none", stroke: color, "stroke-width": "2.5", class: "trend-line" }));
   }
   series.forEach((point, index) => {
     const label = svgEl("text", { x: xOf(index), y: height - 4, class: "chart-tick", "text-anchor": "middle" });
     label.textContent = point.short;
     svg.append(label);
     if (point.value == null) return;
-    const dot = svgEl("circle", { cx: xOf(index), cy: yOf(point.value), r: 3, class: "trend-dot" });
+    const last = point.id === lastId;
+    const dot = svgEl("circle", {
+      cx: xOf(index),
+      cy: yOf(point.value),
+      r: last ? 3.5 : 2.5,
+      class: "trend-dot",
+      fill: last ? color : "#fff",
+      stroke: color,
+      "stroke-width": "2",
+    });
     dot.setAttribute("role", "button");
     dot.setAttribute("tabindex", "0");
     const summary = `${point.short} ${metric.label} ${formatChartValue(metric.key, point.value)} Spend ${formatChartValue("spend", point.spend)} Revenue ${formatChartValue("revenue", point.revenue)}`;

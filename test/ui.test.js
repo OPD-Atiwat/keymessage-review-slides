@@ -120,7 +120,7 @@ test("November overview and Mind book stay on the selected period", async () => 
     assert.equal(shape.octRoas, "0.69");
     assert.match(shape.octClass, /cell-neutral/);
     assert.match(shape.octTitle, /mom_eligible/);
-    assert.equal(shape.octColor, "rgb(27, 39, 68)");
+    assert.equal(shape.octColor, "rgb(75, 72, 112)");
     assert.ok(shape.octBackground === "transparent" || shape.octBackground === "rgba(0, 0, 0, 0)");
     assert.equal(shape.spendText, "฿174,743");
     assert.equal(await page.$eval(".metric-table[data-book='Mind'] [data-metric='spend'][data-period='may']", (node) => node.title), "ไม่มีรายการที่ยืนยันได้");
@@ -177,10 +177,10 @@ test("November overview and Mind book stay on the selected period", async () => 
       assert.ok(cell.background === "transparent" || cell.background === "rgba(0, 0, 0, 0)");
       assert.equal(cell.whiteSpace, "nowrap");
     }
-    const colored = ink.filter((cell) => cell.color === "rgb(11, 107, 56)" || cell.color === "rgb(159, 18, 57)");
+    const colored = ink.filter((cell) => cell.color === "rgb(21, 128, 61)" || cell.color === "rgb(185, 28, 28)");
     assert.ok(colored.length > 0);
     const tab = await page.$eval("[data-book='Mind']", (node) => getComputedStyle(node).backgroundColor);
-    assert.equal(tab, "rgb(217, 245, 228)");
+    assert.equal(tab, "rgb(220, 252, 231)");
     assert.equal(await page.$eval("[data-book='Mind']", (node) => node.getAttribute("aria-pressed")), "true");
     assert.equal(await page.$eval("#report-period", (node) => node.value), "nov1_7");
     const shown = await page.$$eval(".scan-row", (nodes) => nodes.map((node) => node.dataset.adId));
@@ -202,6 +202,13 @@ test("November overview and Mind book stay on the selected period", async () => 
     assert.equal(await page.$$eval(".pick-btn.on", (nodes) => nodes.length), 0);
     await page.screenshot({ path: "/opt/cursor/artifacts/ad-detail-1366.png" });
     await page.screenshot({ path: "/workspace/docs/progress/ad-detail-1366.png" });
+    await page.setViewport({ width: 1024, height: 768 });
+    await page.screenshot({ path: "/opt/cursor/artifacts/ad-detail-1024.png" });
+    await page.screenshot({ path: "/workspace/docs/progress/ad-detail-1024.png" });
+    await page.setViewport({ width: 390, height: 844 });
+    await page.screenshot({ path: "/opt/cursor/artifacts/ad-detail-390.png" });
+    await page.screenshot({ path: "/workspace/docs/progress/ad-detail-390.png" });
+    await page.setViewport({ width: 1366, height: 768 });
     const fit = await page.$eval("#zoom", (node) => {
       const rect = node.getBoundingClientRect();
       const note = document.getElementById("detail-note");
@@ -260,6 +267,9 @@ test("November overview and Mind book stay on the selected period", async () => 
     await page.setViewport({ width: 1024, height: 768 });
     await page.screenshot({ path: "/opt/cursor/artifacts/mind-nov-book-1024.png" });
     await page.screenshot({ path: "/workspace/docs/progress/mind-nov-book-1024.png" });
+    await page.setViewport({ width: 390, height: 844 });
+    await page.screenshot({ path: "/opt/cursor/artifacts/mind-nov-book-390.png" });
+    await page.screenshot({ path: "/workspace/docs/progress/mind-nov-book-390.png" });
     await page.setViewport({ width: 1366, height: 768 });
     await page.$eval(".metric-min", (node) => { node.value = "9"; });
     await page.$eval(".metric-max", (node) => { node.value = "1"; });
