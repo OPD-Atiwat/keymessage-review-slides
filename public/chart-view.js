@@ -9,8 +9,8 @@ import {
   trendScale,
   trendSegments,
   trendSeries,
-} from "/shared/chart-data.js?v=20261109t114";
-import { metricCell } from "/shared/history.js?v=20261109t114";
+} from "/shared/chart-data.js?v=20261109t115";
+import { metricCell } from "/shared/history.js?v=20261109t115";
 
 const BOOK_COLOR = {
   Mind: "#1E2A5A",

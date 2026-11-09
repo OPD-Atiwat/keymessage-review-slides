@@ -1,12 +1,12 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261109t114";
-import { rates } from "/shared/metrics.js?v=20261109t114";
-import { comparisonRows } from "/shared/comparison.js?v=20261109t114";
-import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261109t114";
-import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261109t114";
-import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261109t114";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261109t114";
-import { OVERVIEW_METRICS, OVERVIEW_MONTHS, formatMetric, metricCell } from "/shared/history.js?v=20261109t114";
-import { filterAds, sortAds } from "/shared/ad-query.js?v=20261109t114";
+import { analysisItemId } from "/shared/analysis.js?v=20261109t115";
+import { rates } from "/shared/metrics.js?v=20261109t115";
+import { comparisonRows } from "/shared/comparison.js?v=20261109t115";
+import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261109t115";
+import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261109t115";
+import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261109t115";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261109t115";
+import { OVERVIEW_METRICS, OVERVIEW_MONTHS, formatMetric, metricCell } from "/shared/history.js?v=20261109t115";
+import { filterAds, sortAds } from "/shared/ad-query.js?v=20261109t115";
 import {
   CREATOR_METRICS,
   UNKNOWN_LABEL,
@@ -17,8 +17,8 @@ import {
   reconcileCreators,
   sortCreators,
   unknownCreator,
-} from "/shared/creator-rank.js?v=20261109t114";
-import { renderPeriodChart, renderScatter, renderTrendChart } from "/chart-view.js?v=20261109t114";
+} from "/shared/creator-rank.js?v=20261109t115";
+import { renderPeriodChart, renderScatter, renderTrendChart } from "/chart-view.js?v=20261109t115";
 
 const BOOKS = [
   ["Mind", "ถือไพ่เหนือกว่า"],
@@ -59,6 +59,12 @@ function opening(ad) {
   const body = (ad.body || "").trim();
   if (!body) return "";
   return body.split(/\s+\/\s+/)[0];
+}
+
+function appendGateLine(method, opts, className) {
+  const line = opts.metaGate && opts.metaGate.ok === true ? opts.metaGate.line : "";
+  if (!line) return;
+  method.append(el("p", className, line));
 }
 
 function banner() {
@@ -104,6 +110,7 @@ function renderOverview(root, opts) {
     "ไม่ได้เทียบเดือนก่อน เพราะ mom_eligible เป็นเท็จทุกช่วง",
     `ตรวจ ${snap.pulled || ""}`,
   ].filter(Boolean).join(" · ")));
+  appendGateLine(method, opts, "history-help");
   caption.append(method);
   root.append(caption);
   const combined = combineBooks(opts.deck.bookTotals?.[opts.reportId]);
@@ -241,6 +248,7 @@ function bookTable(name, book, opts) {
   const method = el("details", "history-method");
   method.append(el("summary", "", "วิธีนับ"));
   method.append(el("p", "history-help", "CVR คือ Purchases ÷ Messages (ซื้อ/แชท) ไม่ใช่ CVR ที่ Meta จับคู่. Revenue คือ omni_purchase ไม่ใช่ BEP. ไม่ได้เทียบเดือนก่อน. ยอดเล่มไม่เปลี่ยนเมื่อกรองแอด."));
+  appendGateLine(method, opts, "history-help");
   caption.append(method);
   titles.append(caption);
   head.append(titles);
@@ -447,7 +455,7 @@ function scanRow(ad, index, baseline, bookRate, record, opts) {
   row.append(coloredNum("cvrProxy", rate.cvrProxy == null ? "—" : (rate.cvrProxy * 100).toFixed(1) + "%", metricTone("cvrProxy", rate.cvrProxy, bookRate.cvrProxy)));
   row.append(coloredNum("aov", rate.aov == null ? "—" : baht(rate.aov), metricTone("aov", rate.aov, bookRate.aov)));
   const actions = el("span", "scan-actions");
-  actions.append(pickButton(ad, opts));
+  if (!ad.metaOmitted) actions.append(pickButton(ad, opts));
   row.append(actions);
   if (opts.picks && opts.picks[analysisItemId(opts.reportId, ad.adId)]) row.classList.add("is-picked");
   return row;
@@ -539,6 +547,7 @@ function renderCreator(root, opts) {
     check.ok && coverage.total > 0 ? "ยอดทุกป้าย รวมกลุ่มไม่ทราบ Creator เท่ากับยอดชุดนี้ในช่วงที่เลือก" : "",
     "จัดตามป้าย Creator ที่เก็บไว้ในชุดนี้ ไม่ได้เดาจากวงเล็บในชื่อแอด. Central, Central+Leef, Central+Park และ Central+Phum เป็นคนละแถว. ป้ายร่วมอยู่แถวเดียว ไม่ได้แบ่งยอดให้หลายคน. การจัดกลุ่มไม่ใช่สาเหตุของยอด และไม่ใช่ยอดขายทั้งธุรกิจ. Revenue คือ omni_purchase. CVR คือ Purchases ÷ Messages. พ.ค.–ส.ค. มีแอดที่ไม่มีป้าย ส่วน ก.ย., ต.ค. และ 1–7 พ.ย. มีป้ายครบในชุดนี้.",
   ].filter(Boolean).join(" ")));
+  appendGateLine(method, opts, "creator-note");
   caption.append(method);
   root.append(caption);
 
@@ -857,6 +866,7 @@ function openDetail(ad, record, opts) {
     content.text,
     `ผลลัพธ์ช่วง ${reportLabel(opts.reportId)}`,
     ad.bodyConflict ? "เนื้อครีเอทีฟไม่ตรงกับแท็กเล่มในชื่อแคมเปญและชื่อแอด ยอดนับตามแคมเปญ" : "",
+    ad.metaOmitted ? "ระดับแคมเปญมียอดนี้ แต่ระดับแอดของ Meta ไม่ส่งแถวมา จึงโชว์เป็นแถวเดียวและนับในไม่ทราบ Creator" : "",
   ].filter(Boolean).join(" · ");
   const rate = rates(ad);
   const bookTotals = opts.deck.bookTotals[opts.reportId]?.[ad.book || opts.book];

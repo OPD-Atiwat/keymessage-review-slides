@@ -89,6 +89,7 @@ test("November overview and Mind book stay on the selected period", async () => 
     await page.waitForSelector(".metric-book .metric-table");
     assert.equal(await page.$$eval(".metric-book .metric-table", (nodes) => nodes.length), 4);
     assert.match(await page.$eval(".history-help", (node) => node.textContent), /ไม่ใช่กำไร/);
+    assert.match(await page.$eval(".history-method", (node) => node.textContent), /ตรวจตรงกับ Ads Manager \(Meta\) ล่าสุด .+ ICT, ช่วง พ\.ค\. 2569,/);
     assert.match(await page.$eval(".history-help", (node) => node.textContent), /เฉพาะรายการที่ยืนยันเล่มได้/);
     assert.match(await page.$eval(".metric-scope", (node) => node.textContent), /เฉพาะรายการที่ยืนยันเล่มได้/);
     const shape = await page.$eval(".metric-table[data-book='Mind']", (table) => {

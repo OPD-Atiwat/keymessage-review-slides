@@ -1,11 +1,11 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261109t114";
-import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261109t114";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261109t114";
-import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261109t114";
-import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261109t114";
-import { contentBadge } from "/shared/status-labels.js?v=20261109t114";
-import { renderWeb } from "/web.js?v=20261109t114";
-import { defaultCreatorDir } from "/shared/creator-rank.js?v=20261109t114";
+import { analysisItemId } from "/shared/analysis.js?v=20261109t115";
+import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261109t115";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261109t115";
+import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261109t115";
+import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261109t115";
+import { contentBadge } from "/shared/status-labels.js?v=20261109t115";
+import { renderWeb } from "/web.js?v=20261109t115";
+import { defaultCreatorDir } from "/shared/creator-rank.js?v=20261109t115";
 
 const BOOKS = [
   { id: "Mind", name: "ถือไพ่เหนือกว่า", cls: "mind" },
@@ -37,6 +37,7 @@ const SORTS = [
 const deckEl = document.getElementById("deck");
 const slides = deckEl ? [...deckEl.querySelectorAll(".slide")] : [];
 let deck = null;
+let metaGate = null;
 let index = 0;
 let userMoved = false;
 const PERIOD_IDS = ["nov1_8", "oct", "sep", "aug", "jul", "jun", "may"];
@@ -1376,6 +1377,7 @@ function showWeb() {
   if (webView.view === "present") webView.view = "overview";
   renderWeb(root, {
     deck,
+    metaGate,
     status: statusData,
     view: webView.view,
     book: webView.book,
@@ -1769,6 +1771,8 @@ async function init() {
   const response = await fetch("/data/deck.json");
   if (!response.ok) throw new Error("โหลดข้อมูลไม่ได้");
   deck = await response.json();
+  const gateResponse = await fetch("/data/meta-gate.json");
+  metaGate = gateResponse.ok ? await gateResponse.json() : null;
   statusData = await fetch("/data/ad-status.json").then((item) => item.json());
   const previews = await fetch("/data/previews/manifest.json");
   if (previews.ok) previewManifest = await previews.json();

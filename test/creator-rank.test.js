@@ -15,7 +15,7 @@ import {
 } from "../shared/creator-rank.js";
 
 const deck = JSON.parse(readFileSync(new URL("../public/data/deck.json", import.meta.url), "utf8"));
-const SOURCE_SHA = "58e33450cb3b3b885fdb7de5137fce065906e4337ef42b9a4079f78e878f8613";
+const SOURCE_SHA = "7a31902c85618ca996bf5793a7e447320c0bdc72527ea95ef6ebe7573e1d023f";
 const PERIODS = ["may", "jun", "jul", "aug", "sep", "oct", "nov1_8"];
 const BOOKS = ["Mind", "Coworkers", "SurvivalGuide", "Trap"];
 
