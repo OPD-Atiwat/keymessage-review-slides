@@ -148,7 +148,7 @@ test("an approved status is still required before publishable is true", () => {
 
 test("the published deck is still the frozen four periods", () => {
   const deck = JSON.parse(readFileSync(new URL("../public/data/deck.json", import.meta.url), "utf8"));
-  assert.deepEqual(Object.keys(deck.bookTotals).sort(), ["aug", "jul", "jun", "may", "nov1_7", "oct", "sep"]);
+  assert.deepEqual(Object.keys(deck.bookTotals).sort(), ["aug", "jul", "jun", "may", "nov1_8", "oct", "sep"]);
   assert.equal(deck.bookTotals.oct1_7, undefined);
   assert.equal(deck.bookTotals.may.Mind, null);
 });
@@ -187,7 +187,7 @@ test("the preliminary hold bundle is not the published deck", { skip: true }, ()
   assert.equal(model.trend("2026-11", "Mind").tone, "neutral");
   assert.equal(model.trend("2026-11", "Trap").basis.includes("1–7 ต.ค."), false);
   const deck = JSON.parse(readFileSync(new URL("../public/data/deck.json", import.meta.url), "utf8"));
-  assert.notEqual(nov.spend, deck.bookTotals.nov1_7.Mind.spend);
+  assert.notEqual(nov.spend, deck.bookTotals.nov1_8.Mind.spend);
   const canon = {};
   for (const period of model.periods) {
     canon[period.id] = {};

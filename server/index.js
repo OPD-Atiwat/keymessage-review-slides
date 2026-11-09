@@ -383,7 +383,6 @@ async function selectAnalysis(adId, reportPeriod) {
   const ad = catalog.ads.find((item) => item.adId === adId && item.period === reportPeriod);
   if (!ad) return { status: 400, error: "ไม่พบแอดในช่วงผลลัพธ์นี้" };
   const record = catalog.byId[adId];
-  if (record?.excluded_from_book_totals) return { status: 400, error: "แอดนี้ไม่ได้อยู่ในตารางที่ใช้เลือก" };
   const itemId = `${reportPeriod}:${adId}`;
   const contentMonth = record?.content_month || "unknown";
   const contentMonthLabel = record?.content_month_label || "ไม่ระบุเดือน Content";

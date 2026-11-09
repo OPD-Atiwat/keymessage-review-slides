@@ -1,11 +1,11 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261109t113";
-import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261109t113";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261109t113";
-import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261109t113";
-import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261109t113";
-import { contentBadge } from "/shared/status-labels.js?v=20261109t113";
-import { renderWeb } from "/web.js?v=20261109t113";
-import { defaultCreatorDir } from "/shared/creator-rank.js?v=20261109t113";
+import { analysisItemId } from "/shared/analysis.js?v=20261109t114";
+import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261109t114";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261109t114";
+import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261109t114";
+import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261109t114";
+import { contentBadge } from "/shared/status-labels.js?v=20261109t114";
+import { renderWeb } from "/web.js?v=20261109t114";
+import { defaultCreatorDir } from "/shared/creator-rank.js?v=20261109t114";
 
 const BOOKS = [
   { id: "Mind", name: "ถือไพ่เหนือกว่า", cls: "mind" },
@@ -20,7 +20,7 @@ const PERIODS = [
   { id: "aug", label: "ส.ค. 2569" },
   { id: "sep", label: "ก.ย. 2569" },
   { id: "oct", label: "ต.ค. 2569" },
-  { id: "nov1_7", label: "1–7 พ.ย. 2569" },
+  { id: "nov1_8", label: "1–8 พ.ย. 2569" },
 ];
 const SORTS = [
   ["revenue", "Revenue"],
@@ -39,8 +39,8 @@ const slides = deckEl ? [...deckEl.querySelectorAll(".slide")] : [];
 let deck = null;
 let index = 0;
 let userMoved = false;
-const PERIOD_IDS = ["nov1_7", "oct", "sep", "aug", "jul", "jun", "may"];
-const adState = { period: "nov1_7", book: "", tag: "", sort: "revenue", q: "", page: 0, bodyKey: "", contentId: "all", statusId: "all" };
+const PERIOD_IDS = ["nov1_8", "oct", "sep", "aug", "jul", "jun", "may"];
+const adState = { period: "nov1_8", book: "", tag: "", sort: "revenue", q: "", page: 0, bodyKey: "", contentId: "all", statusId: "all" };
 let statusData = { ads_by_id: {}, summary: {} };
 let previewManifest = { coverage: "pending", ads: {} };
 let tableQuery = { sortKey: "spend", sortDir: "desc", filterKey: "spend", min: "", max: "", appliedKey: "spend", appliedMin: "", appliedMax: "", error: "" };
@@ -1365,9 +1365,9 @@ function readPeriod() {
     adState.period = value;
     return value;
   }
-  adState.period = "nov1_7";
-  if (node) node.value = "nov1_7";
-  return "nov1_7";
+  adState.period = "nov1_8";
+  if (node) node.value = "nov1_8";
+  return "nov1_8";
 }
 
 function showWeb() {
@@ -1729,10 +1729,10 @@ function refreshViews() {
 }
 
 function syncAsof() {
-  const labels = { sep: "ก.ย. 2569 ทั้งเดือน", oct: "ต.ค. 2569 ทั้งเดือน", oct1_7: "1–7 ต.ค. 2569", nov1_7: "1–7 พ.ย. 2569" };
+  const labels = { sep: "ก.ย. 2569 ทั้งเดือน", oct: "ต.ค. 2569 ทั้งเดือน", oct1_7: "1–7 ต.ค. 2569", nov1_8: "1–8 พ.ย. 2569" };
   const selected = document.getElementById("report-period").value;
   const asof = document.getElementById("asof");
-  if (asof) asof.textContent = "ถึง 7 พ.ย. 2569";
+  if (asof) asof.textContent = "ถึง 8 พ.ย. 2569";
   const badge = document.getElementById("present-asof");
   if (badge) badge.textContent = labels[selected];
   const present = document.getElementById("present-period");
@@ -1758,8 +1758,8 @@ async function init() {
   document.body.classList.add("mode-web");
   document.body.classList.remove("mode-present");
   const period = document.getElementById("report-period");
-  if (period) period.value = "nov1_7";
-  adState.period = "nov1_7";
+  if (period) period.value = "nov1_8";
+  adState.period = "nov1_8";
   const route = routeFromHash();
   webView.view = route.view;
   if (route.book) webView.book = route.book;

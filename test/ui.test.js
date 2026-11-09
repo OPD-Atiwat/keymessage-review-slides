@@ -84,7 +84,7 @@ test("November overview and Mind book stay on the selected period", async () => 
     assert.equal(await page.$("[data-view='present']"), null);
     const logout = await page.$$eval("button", (nodes) => nodes.map((node) => node.textContent).filter((text) => text.includes("ออกจากระบบ")));
     assert.deepEqual(logout, []);
-    assert.equal(await page.$eval("#report-period", (node) => node.value), "nov1_7");
+    assert.equal(await page.$eval("#report-period", (node) => node.value), "nov1_8");
     assert.equal(await page.$eval("[data-view='overview']", (node) => node.getAttribute("aria-pressed")), "true");
     await page.waitForSelector(".metric-book .metric-table");
     assert.equal(await page.$$eval(".metric-book .metric-table", (nodes) => nodes.length), 4);
@@ -97,7 +97,7 @@ test("November overview and Mind book stay on the selected period", async () => 
       const may = table.querySelector("[data-metric='spend'][data-period='may']").textContent;
       const octRoas = table.querySelector("[data-metric='roas'][data-period='oct']");
       const octSpend = table.querySelector("[data-metric='spend'][data-period='oct']");
-      const nov = table.querySelector("[data-metric='roas'][data-period='nov1_7']");
+      const nov = table.querySelector("[data-metric='roas'][data-period='nov1_8']");
       const mixed = table.querySelector(".history-cell, .history-pair, .history-roas");
       return {
         months,
@@ -114,7 +114,7 @@ test("November overview and Mind book stay on the selected period", async () => 
         mixed: Boolean(mixed),
       };
     });
-    assert.deepEqual(shape.months, ["พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "1–7 พ.ย."]);
+    assert.deepEqual(shape.months, ["พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "1–8 พ.ย."]);
     assert.deepEqual(shape.metrics, ["Spend", "Revenue", "ROAS", "Messages", "Cost per Message", "CPM", "Purchases", "CVR", "AOV"]);
     assert.equal(shape.may, "—");
     assert.equal(shape.octRoas, "0.69");
@@ -122,10 +122,10 @@ test("November overview and Mind book stay on the selected period", async () => 
     assert.match(shape.octTitle, /mom_eligible/);
     assert.equal(shape.octColor, "rgb(75, 72, 112)");
     assert.ok(shape.octBackground === "transparent" || shape.octBackground === "rgba(0, 0, 0, 0)");
-    assert.equal(shape.spendText, "฿174,743");
+    assert.equal(shape.spendText, "฿176,389");
     assert.equal(await page.$eval(".metric-table[data-book='Mind'] [data-metric='spend'][data-period='may']", (node) => node.title), "ไม่มีรายการที่ยืนยันได้");
     assert.match(shape.spendClass, /cell-volume/);
-    assert.match(shape.novTitle, /1–7 ต\.ค\./);
+    assert.match(shape.novTitle, /1–8 ต\.ค\./);
     assert.equal(shape.novTitle.includes("ทั้งเดือน"), false);
     assert.equal(shape.mixed, false);
     assert.equal(await page.$(".history-cell"), null);
@@ -153,7 +153,7 @@ test("November overview and Mind book stay on the selected period", async () => 
     await page.click("[data-book='Mind']");
     await page.waitForSelector(".scan-row");
     const mind = await page.$eval("h2", (node) => node.textContent);
-    assert.match(mind, /1–7 พ\.ย\. 2569/);
+    assert.match(mind, /1–8 พ\.ย\. 2569/);
     assert.equal(mind.includes("ต.ค. ทั้งเดือน"), false);
     const headers = await page.$$eval(".scan-head button, .scan-head span", (nodes) => nodes.map((node) => node.textContent));
     for (const label of ["Spend", "Revenue", "ROAS", "Messages", "Cost per Message", "CPM", "Purchases", "CVR", "AOV"]) {
@@ -182,7 +182,7 @@ test("November overview and Mind book stay on the selected period", async () => 
     const tab = await page.$eval("[data-book='Mind']", (node) => getComputedStyle(node).backgroundColor);
     assert.equal(tab, "rgb(220, 252, 231)");
     assert.equal(await page.$eval("[data-book='Mind']", (node) => node.getAttribute("aria-pressed")), "true");
-    assert.equal(await page.$eval("#report-period", (node) => node.value), "nov1_7");
+    assert.equal(await page.$eval("#report-period", (node) => node.value), "nov1_8");
     const shown = await page.$$eval(".scan-row", (nodes) => nodes.map((node) => node.dataset.adId));
     assert.equal(shown.length, 33);
     assert.equal(new Set(shown).size, 33);
@@ -233,7 +233,7 @@ test("November overview and Mind book stay on the selected period", async () => 
     assert.ok(xTicks.includes("฿0"));
     assert.ok(xTicks.some((label) => /฿\d+k/.test(label)));
     assert.ok(yTicks.some((label) => label === "0" || label.startsWith("0.")));
-    assert.equal(await page.$eval(".chart-base-label", (node) => node.textContent), "ROAS ทั้งเล่ม 0.89");
+    assert.equal(await page.$eval(".chart-base-label", (node) => node.textContent), "ROAS ทั้งเล่ม 0.92");
     assert.equal(await page.$$eval("summary", (nodes) => nodes.filter((node) => node.textContent === "ตัวเลขในกราฟ").length), 0);
     const picksBefore = await page.$$eval(".pick-btn.on", (nodes) => nodes.length);
     await page.click(".scatter-hit");
@@ -249,7 +249,7 @@ test("November overview and Mind book stay on the selected period", async () => 
     assert.ok(nameStyle.title.length > 0);
     const fullTotal = await page.$eval(".scan-total", (node) => node.textContent);
     assert.match(fullTotal, /ไม่ใช่ยอดที่กรอง/);
-    assert.match(fullTotal, /34,890/);
+    assert.match(fullTotal, /39,817/);
     await page.click("[data-sort='revenue']");
     await page.waitForFunction(() => document.querySelector("[data-sort='revenue']").getAttribute("aria-sort") === "descending");
     await page.$eval(".metric-min", (node) => { node.value = "1000"; });
@@ -261,7 +261,7 @@ test("November overview and Mind book stay on the selected period", async () => 
     });
     const filteredCount = await page.$eval(".scan-count", (node) => node.textContent);
     assert.match(filteredCount, /^\d+\/33/);
-    assert.match(await page.$eval(".scan-total", (node) => node.textContent), /34,890/);
+    assert.match(await page.$eval(".scan-total", (node) => node.textContent), /39,817/);
     await page.screenshot({ path: "/opt/cursor/artifacts/mind-nov-book-1366.png" });
     await page.screenshot({ path: "/workspace/docs/progress/mind-nov-book-1366.png" });
     await page.setViewport({ width: 1024, height: 768 });
@@ -285,11 +285,11 @@ test("November overview and Mind book stay on the selected period", async () => 
     await page.screenshot({ path: "/workspace/docs/progress/mind-nov-unfiltered-1366.png" });
 
     await page.click("[data-book='Coworkers']");
-    await page.waitForFunction(() => document.querySelector("h2").textContent.includes("1–7 พ.ย. 2569"));
+    await page.waitForFunction(() => document.querySelector("h2").textContent.includes("1–8 พ.ย. 2569"));
     assert.equal((await page.$eval("h2", (node) => node.textContent)).includes("ต.ค. ทั้งเดือน"), false);
     await page.click("[data-view='overview']");
     await page.waitForSelector(".metric-table");
-    assert.equal(await page.$eval("#report-period", (node) => node.value), "nov1_7");
+    assert.equal(await page.$eval("#report-period", (node) => node.value), "nov1_8");
 
     await page.click("[data-view='creator']");
     await page.waitForSelector(".creator-table");
@@ -338,7 +338,7 @@ test("November overview and Mind book stay on the selected period", async () => 
     await page.select("#report-period", "may");
     await page.waitForFunction(() => document.body.innerText.includes("ไม่ทราบ Creator"));
     assert.match(await page.$eval("body", (node) => node.textContent), /ไม่ได้เดาจากชื่อแอด/);
-    await page.select("#report-period", "nov1_7");
+    await page.select("#report-period", "nov1_8");
     await page.waitForSelector(".creator-row");
     await page.setViewport({ width: 1024, height: 768 });
     await page.screenshot({ path: "/opt/cursor/artifacts/creator-1024.png" });
@@ -361,13 +361,13 @@ test("November overview and Mind book stay on the selected period", async () => 
     await page.waitForFunction(() => document.querySelector(".pick-btn").getAttribute("aria-pressed") === "true");
     await page.click("[data-view='analysis']");
     await page.waitForSelector(".analysis-note");
-    assert.match(await page.$eval(".analysis-card", (node) => node.innerText), /1–7 พ\.ย\./);
+    assert.match(await page.$eval(".analysis-card", (node) => node.innerText), /1–8 พ\.ย\./);
     assert.ok((await page.$eval(".analysis-card", (node) => node.innerText)).includes(pickedName));
     await page.type(".analysis-note", marker);
     await page.waitForFunction(() => document.querySelector(".analysis-status").textContent.includes("บันทึกแล้ว"));
     await page.reload({ waitUntil: "networkidle0" });
     await page.waitForSelector("body[data-hydrated='1']");
-    assert.equal(await page.$eval("#report-period", (node) => node.value), "nov1_7");
+    assert.equal(await page.$eval("#report-period", (node) => node.value), "nov1_8");
     await page.click("[data-view='analysis']");
     await page.waitForFunction((text) => {
       const area = document.querySelector(".analysis-note");

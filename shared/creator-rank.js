@@ -25,12 +25,8 @@ export function defaultCreatorDir(key) {
 }
 
 export function periodAds(ads, period, book = "all") {
-  return ads.filter((ad) => {
-    if (ad.period !== period) return false;
-    if (!VERIFIED_BOOKS.includes(ad.book)) return false;
-    if (book && book !== "all" && ad.book !== book) return false;
-    return true;
-  });
+  const allowed = book && book !== "all" ? [book] : [...VERIFIED_BOOKS, "Unassigned"];
+  return ads.filter((ad) => ad.period === period && allowed.includes(ad.book));
 }
 
 /**
@@ -105,7 +101,8 @@ export function expectedTotals(bookTotals, period, book = "all") {
   if (book && book !== "all") return bookTotals?.[period]?.[book] || null;
   const totals = { spend: 0, revenue: 0, impressions: 0, chats: 0, purchases: 0, n: 0 };
   let any = false;
-  for (const id of VERIFIED_BOOKS) {
+  const ids = book && book !== "all" ? [book] : [...VERIFIED_BOOKS, "Unassigned"];
+  for (const id of ids) {
     const row = bookTotals?.[period]?.[id];
     if (!row) continue;
     any = true;

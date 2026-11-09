@@ -16,9 +16,9 @@ test("coverage keeps the old status snapshot and does not call new history ads a
   assert.equal(added.some((ad) => ad.effective_status === "ACTIVE" || ad.delivery_confirmed), false);
   for (const id of QUARANTINE) {
     assert.equal(status.ads_by_id[id].excluded_from_book_totals, true);
-    assert.equal(deck.ads.some((ad) => ad.adId === id), false);
+    assert.equal(deck.ads.some((ad) => ad.adId === id), true);
   }
-  assert.equal(deck.excluded.quarantine.length, 5);
+  assert.equal(deck.excluded.quarantine.length, 0);
   assert.equal(deck.ads.some((ad) => deck.excluded.quarantine.some((row) => row.adId === ad.adId)), false);
 });
 

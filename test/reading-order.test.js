@@ -13,7 +13,7 @@ test("enabled snapshot ads lead, and every selected-month ad stays visible", () 
       ads: deck.ads,
       statusById: status.ads_by_id,
       book,
-      period: "nov1_7",
+      period: "nov1_8",
     });
     const ordered = orderMonthAds(rows, status.ads_by_id);
     assert.equal(ordered.length, rows.length);
@@ -21,7 +21,7 @@ test("enabled snapshot ads lead, and every selected-month ad stays visible", () 
     const ranks = ordered.map((ad) => statusRank(status.ads_by_id[ad.adId]));
     const sorted = ranks.slice().sort((a, b) => a - b);
     assert.deepEqual(ranks, sorted);
-    assert.equal(deck.bookTotals.nov1_7[book].n, rows.length);
+    assert.equal(deck.bookTotals.nov1_8[book].n, rows.length);
   }
   assert.equal(statusRank({ effective_status: "ACTIVE" }), 0);
   assert.equal(statusRank(null), 2);

@@ -12,8 +12,8 @@ test("performance cutoff uses the Bangkok calendar, not the UTC date", () => {
     performanceThroughIso(utcEveningIsAlreadyNextBangkokMorning),
     "2026-11-06"
   );
-  assert.equal(FROZEN_PERFORMANCE.through, "2026-11-07");
-  assert.match(FROZEN_PERFORMANCE.novMtdLabel, /1–7 พ\.ย\./);
+  assert.equal(FROZEN_PERFORMANCE.through, "2026-11-08");
+  assert.match(FROZEN_PERFORMANCE.novMtdLabel, /1–8 พ\.ย\./);
   assert.match(FROZEN_PERFORMANCE.novMtdLabel, /ไม่ครบเดือน/);
 });
 

@@ -15,8 +15,8 @@ import {
 } from "../shared/creator-rank.js";
 
 const deck = JSON.parse(readFileSync(new URL("../public/data/deck.json", import.meta.url), "utf8"));
-const SOURCE_SHA = "7dd0e69edbe69785a13add925242976332367ad3516541119c86c7b786d4d297";
-const PERIODS = ["may", "jun", "jul", "aug", "sep", "oct", "nov1_7"];
+const SOURCE_SHA = "58e33450cb3b3b885fdb7de5137fce065906e4337ef42b9a4079f78e878f8613";
+const PERIODS = ["may", "jun", "jul", "aug", "sep", "oct", "nov1_8"];
 const BOOKS = ["Mind", "Coworkers", "SurvivalGuide", "Trap"];
 
 test("the verified deck file is unchanged", () => {
@@ -95,7 +95,7 @@ test("a blank tag stays unknown even when the ad name contains a person", () => 
 });
 
 test("September through 1–7 November have a stored tag on every included ad", () => {
-  for (const period of ["sep", "oct", "nov1_7"]) {
+  for (const period of ["sep", "oct", "nov1_8"]) {
     const coverage = coverageOf(creatorGroups(deck.ads, period, "all"));
     assert.equal(coverage.blank, 0, period);
     assert.ok(coverage.tagged > 0);
@@ -109,6 +109,31 @@ test("a creator history uses the stored tag and leaves a missing month null", ()
   assert.equal(history.find((point) => point.id === "oct").value, october.roas);
   assert.equal(history.find((point) => point.id === "may").value, null);
   assert.equal(history.some((point) => point.value === 0 && point.n === 0), false);
+});
+
+test("November 1–8 matches the Ads Manager campaign-tag fixtures", () => {
+  const nov = deck.bookTotals.nov1_8;
+  const expectBook = {
+    Mind: [39816.8, 104, 36771, 525],
+    Coworkers: [68494.5, 322, 112702, 1258],
+    SurvivalGuide: [35055.61, 135, 39162, 308],
+    Trap: [77900.19, 254, 129262, 966],
+  };
+  for (const [book, [spend, purchases, revenue, chats]] of Object.entries(expectBook)) {
+    assert.ok(Math.abs(nov[book].spend - spend) < 1, book);
+    assert.equal(nov[book].purchases, purchases, book);
+    assert.equal(nov[book].revenue, revenue, book);
+    assert.equal(nov[book].chats, chats, book);
+  }
+  const krin = creatorGroups(deck.ads, "nov1_8", "all").find((row) => row.tag === "คริน");
+  assert.ok(Math.abs(krin.spend - 12371.55) < 1);
+  assert.equal(krin.purchases, 35);
+  assert.equal(krin.revenue, 36448);
+  assert.equal(krin.chats, 124);
+  assert.ok(Math.abs(krin.roas - 2.95) < 0.01);
+  assert.ok(krin.ads.some((ad) => ad.adId === "120255364063130260" && ad.book === "Trap" && ad.bodyConflict));
+  const check = reconcileCreators(creatorGroups(deck.ads, "nov1_8", "all"), deck.bookTotals, "nov1_8", "all");
+  assert.equal(check.ok, true);
 });
 
 test("missing rates sort last, zero stays zero, and ties follow the name", () => {

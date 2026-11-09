@@ -1,12 +1,12 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261109t113";
-import { rates } from "/shared/metrics.js?v=20261109t113";
-import { comparisonRows } from "/shared/comparison.js?v=20261109t113";
-import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261109t113";
-import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261109t113";
-import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261109t113";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261109t113";
-import { OVERVIEW_METRICS, OVERVIEW_MONTHS, formatMetric, metricCell } from "/shared/history.js?v=20261109t113";
-import { filterAds, sortAds } from "/shared/ad-query.js?v=20261109t113";
+import { analysisItemId } from "/shared/analysis.js?v=20261109t114";
+import { rates } from "/shared/metrics.js?v=20261109t114";
+import { comparisonRows } from "/shared/comparison.js?v=20261109t114";
+import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261109t114";
+import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261109t114";
+import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261109t114";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261109t114";
+import { OVERVIEW_METRICS, OVERVIEW_MONTHS, formatMetric, metricCell } from "/shared/history.js?v=20261109t114";
+import { filterAds, sortAds } from "/shared/ad-query.js?v=20261109t114";
 import {
   CREATOR_METRICS,
   UNKNOWN_LABEL,
@@ -17,8 +17,8 @@ import {
   reconcileCreators,
   sortCreators,
   unknownCreator,
-} from "/shared/creator-rank.js?v=20261109t113";
-import { renderPeriodChart, renderScatter, renderTrendChart } from "/chart-view.js?v=20261109t113";
+} from "/shared/creator-rank.js?v=20261109t114";
+import { renderPeriodChart, renderScatter, renderTrendChart } from "/chart-view.js?v=20261109t114";
 
 const BOOKS = [
   ["Mind", "ถือไพ่เหนือกว่า"],
@@ -53,7 +53,7 @@ function mom(current, previous) {
   return changePct(current, previous).text;
 }
 function reportLabel(id) {
-  return { may: "พ.ค. 2569", jun: "มิ.ย. 2569", jul: "ก.ค. 2569", aug: "ส.ค. 2569", sep: "ก.ย. 2569", oct: "ต.ค. 2569", oct1_7: "1–7 ต.ค. 2569", nov1_7: "1–7 พ.ย. 2569" }[id] || id;
+  return { may: "พ.ค. 2569", jun: "มิ.ย. 2569", jul: "ก.ค. 2569", aug: "ส.ค. 2569", sep: "ก.ย. 2569", oct: "ต.ค. 2569", oct1_7: "1–7 ต.ค. 2569", nov1_8: "1–8 พ.ย. 2569" }[id] || id;
 }
 function opening(ad) {
   const body = (ad.body || "").trim();
@@ -99,7 +99,7 @@ function renderOverview(root, opts) {
     snap.optionalCrossRange,
     "Revenue คือ omni_purchase ไม่ใช่ BEP",
     "CVR คือ Purchases ÷ Messages (ซื้อ/แชท) ไม่ใช่ CVR ที่ Meta จับคู่",
-    "1–7 พ.ย. ไม่ใช่เดือนเต็ม",
+    "1–8 พ.ย. ไม่ใช่เดือนเต็ม",
     "— ไม่ใช่ 0",
     "ไม่ได้เทียบเดือนก่อน เพราะ mom_eligible เป็นเท็จทุกช่วง",
     `ตรวจ ${snap.pulled || ""}`,
@@ -468,7 +468,7 @@ function pickButton(ad, opts) {
   return button;
 }
 
-const PERIOD_LABEL = { may: "พ.ค. 2569", jun: "มิ.ย. 2569", jul: "ก.ค. 2569", aug: "ส.ค. 2569", sep: "ก.ย. 2569", oct: "ต.ค. 2569", oct1_7: "1–7 ต.ค.", nov1_7: "1–7 พ.ย." };
+const PERIOD_LABEL = { may: "พ.ค. 2569", jun: "มิ.ย. 2569", jul: "ก.ค. 2569", aug: "ส.ค. 2569", sep: "ก.ย. 2569", oct: "ต.ค. 2569", oct1_7: "1–7 ต.ค.", nov1_8: "1–8 พ.ย." };
 const BOOK_LABEL = Object.fromEntries(BOOKS);
 
 function creatorToken(tag) {
@@ -494,6 +494,7 @@ function renderCreator(root, opts) {
   root.append(el("h2", "web-title", `อันดับ Creator · เรียงตาม ${metric.label}`));
   const switcher = el("div", "book-switch");
   const scopes = [["all", "ภาพรวม"], ...BOOKS];
+  if (opts.deck.bookTotals?.[opts.reportId]?.Unassigned) scopes.push(["Unassigned", "ไม่ระบุเล่ม"]);
   for (const [id, name] of scopes) {
     const button = el("button", scope === id ? "on" : "");
     button.type = "button";
@@ -523,7 +524,7 @@ function renderCreator(root, opts) {
   controls.append(metricLabel, dir);
 
   const caption = el("div", "page-caption");
-  caption.append(el("p", "creator-note", `${scopeName} · ${reportLabel(opts.reportId)} · เรียงตาม ${metric.label} ${dirText}`));
+  caption.append(el("p", "creator-note", `${scopeName} · ${reportLabel(opts.reportId)} · เรียงตาม ${metric.label} ${dirText} · ยอดทุกป้าย รวมไม่ทราบ Creator และไม่ระบุเล่ม เท่ากับยอดสี่เล่มบวกถังไม่ระบุเล่ม`));
   const method = el("details", "history-method");
   method.append(el("summary", "", "วิธีนับ"));
   const cover = coverage.total === 0
@@ -855,7 +856,8 @@ function openDetail(ad, record, opts) {
     ad.creatorTag ? `Creator ${ad.creatorTag}` : "ไม่ทราบ Creator",
     content.text,
     `ผลลัพธ์ช่วง ${reportLabel(opts.reportId)}`,
-  ].join(" · ");
+    ad.bodyConflict ? "เนื้อครีเอทีฟไม่ตรงกับแท็กเล่มในชื่อแคมเปญและชื่อแอด ยอดนับตามแคมเปญ" : "",
+  ].filter(Boolean).join(" · ");
   const rate = rates(ad);
   const bookTotals = opts.deck.bookTotals[opts.reportId]?.[ad.book || opts.book];
   const bookRate = bookTotals ? rates(bookTotals) : {};

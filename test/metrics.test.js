@@ -30,10 +30,12 @@ test("book rates come from sums, not the mean of ad rates", () => {
   }
 });
 
-test("quarantine stays out of the deck and central tags stay separate", () => {
+test("campaign-tag conflicts stay in the deck and central tags stay separate", () => {
   const ids = new Set(deck.ads.map((ad) => ad.adId));
-  for (const id of QUARANTINE) assert.equal(ids.has(id), false);
-  assert.ok(deck.excluded.quarantine.some((row) => row.adId === QUARANTINE[0]));
+  for (const id of QUARANTINE) assert.equal(ids.has(id), true);
+  const kept = deck.ads.find((ad) => ad.adId === QUARANTINE[0] && ad.period === "nov1_8");
+  assert.equal(kept.book, "Trap");
+  assert.equal(kept.bodyConflict, true);
   const tags = new Set(deck.ads.map((ad) => ad.creatorTag));
   for (const tag of ["Central", "Central+Leef", "Central+Park", "Central+Phum"]) {
     assert.equal(tags.has(tag), true);

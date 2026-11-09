@@ -34,11 +34,11 @@ export function performanceThroughIso(now = new Date()) {
   return isoDate(performanceThrough(now));
 }
 
-/** This release's frozen metrics. Nov 8 is not included. Status checks are separate. */
+/** This release's frozen metrics. November performance is 1–8. Status checks are separate. */
 export const FROZEN_PERFORMANCE = {
   timezone: BANGKOK,
-  through: "2026-11-07",
-  throughLabel: "ผลลัพธ์ถึง 7 พ.ย. 2569",
-  novMtdLabel: "1–7 พ.ย. 2569 (ถึงเมื่อวาน · ยังไม่ครบเดือน)",
-  rule: "ทุกครั้งที่อัปเดตตัวเลข ดึงได้ถึงเมื่อวานตามเวลาไทยเท่านั้น ห้ามรวมยอดวันนี้ที่ยังไม่จบวัน",
+  through: "2026-11-08",
+  throughLabel: "ผลลัพธ์ถึง 8 พ.ย. 2569",
+  novMtdLabel: "1–8 พ.ย. 2569 (ยังไม่ครบเดือน)",
+  rule: "ชุดนี้รวมถึง 8 พ.ย. 2569 ตามเวลาไทย และไม่รวมวันที่ 9 ที่ยังไม่จบวัน",
 };

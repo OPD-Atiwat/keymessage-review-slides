@@ -6,7 +6,6 @@ export function comparisonRows({ ads, statusById, book, period, contentId = "all
     if (ad.period !== period) continue;
     if (book && ad.book !== book) continue;
     const record = statusById?.[ad.adId];
-    if (record?.excluded_from_book_totals) continue;
     const content = record?.content_month || "unknown";
     if (contentId === "unknown" && content !== "unknown") continue;
     if (contentId !== "all" && contentId !== "unknown" && content !== contentId && content !== "unknown") continue;

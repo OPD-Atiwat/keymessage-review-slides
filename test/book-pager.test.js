@@ -89,7 +89,7 @@ test("each book shows every selected-month ad without a pager", async () => {
         ads: deck.ads,
         statusById: status.ads_by_id,
         book,
-        period: "nov1_7",
+        period: "nov1_8",
       }).map((ad) => ad.adId).sort();
       const shown = await page.$$eval(".scan-row", (nodes) => nodes.map((node) => node.dataset.adId).sort());
       assert.deepEqual(shown, expected);
@@ -99,7 +99,7 @@ test("each book shows every selected-month ad without a pager", async () => {
     }
     await page.select("#report-period", "oct");
     await page.waitForSelector(".scan-row");
-    await page.select("#report-period", "nov1_7");
+    await page.select("#report-period", "nov1_8");
     await page.click(".scan-row .pick-btn");
     await page.waitForFunction(() => document.querySelector(".scan-row .pick-btn").textContent.includes("เลือกแล้ว"));
     await page.click("[data-view='overview']");

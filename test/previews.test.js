@@ -47,7 +47,7 @@ test("validated previews keep exact files, labels, and the performance checksum"
     assert.equal(state.state, "ready");
     assert.equal(state.label, item.kind === "video_cover" ? "ปกวิดีโอ" : "ภาพแอดจริง");
     assert.equal(state.label.includes("เฟรม"), false);
-    if (item.november) nov[deck.ads.find((ad) => ad.adId === adId && ad.period === "nov1_7").book] += 1;
+    if (item.november) nov[deck.ads.find((ad) => ad.adId === adId && ad.period === "nov1_8").book] += 1;
   }
   assert.deepEqual(nov, { Mind: 1, Coworkers: 3, SurvivalGuide: 1, Trap: 10 });
   const missingId = Object.keys(manifest.ads).find((id) => manifest.ads[id].november && manifest.ads[id].coverage !== "ready");

@@ -1,4 +1,4 @@
-export const REPORT_PERIODS = ["may", "jun", "jul", "aug", "sep", "oct", "oct1_7", "nov1_7"];
+export const REPORT_PERIODS = ["may", "jun", "jul", "aug", "sep", "oct", "oct1_7", "nov1_7", "nov1_8"];
 
 export function analysisItemId(period, adId) {
   return `${period}:${adId}`;

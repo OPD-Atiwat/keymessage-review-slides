@@ -1,7 +1,7 @@
 import { changePct, metricTone } from "./conditional.js";
 import { rates } from "./metrics.js";
 
-/** Columns of the monthly overview. November is 1–7 only. */
+/** Columns of the monthly overview. November is 1–8 only. */
 export const OVERVIEW_MONTHS = [
   { id: "may", kind: "full", label: "พ.ค. 2569", short: "พ.ค." },
   { id: "jun", kind: "full", label: "มิ.ย. 2569", short: "มิ.ย." },
@@ -9,7 +9,7 @@ export const OVERVIEW_MONTHS = [
   { id: "aug", kind: "full", label: "ส.ค. 2569", short: "ส.ค." },
   { id: "sep", kind: "full", label: "ก.ย. 2569", short: "ก.ย." },
   { id: "oct", kind: "full", label: "ต.ค. 2569", short: "ต.ค." },
-  { id: "nov1_7", kind: "partial", label: "1–7 พ.ย. 2569", short: "1–7 พ.ย.", through: "2026-11-07" },
+  { id: "nov1_8", kind: "partial", label: "1–8 พ.ย. 2569", short: "1–8 พ.ย.", through: "2026-11-08" },
 ];
 
 /** Published months in this scoped snapshot. There is no separate 1–7 October column. */
@@ -28,14 +28,14 @@ export const OVERVIEW_METRICS = [
 ];
 
 /** Same-length pair already inside the snapshot. Not a full-month comparison. */
-export const MATCHED_PARTIAL = { id: "nov1_7", baseId: "oct1_7", baseLabel: "1–7 ต.ค. 2569" };
+export const MATCHED_PARTIAL = { id: "nov1_8", baseId: "oct1_8", baseLabel: "1–8 ต.ค. 2569" };
 
 export const UNPUBLISHED_MONTHS = [];
 export const EMPTY_BOOK_LABEL = "ไม่มีรายการที่ยืนยันได้";
 
 export const HISTORY_WINDOW = 4;
 
-export const SOURCE_CUTOFF = "2026-11-07";
+export const SOURCE_CUTOFF = "2026-11-08";
 
 /**
  * Every book-period row in the source bundle has mom_eligible false, including full months.
@@ -88,7 +88,7 @@ export function metricCell(bookTotals, periodId, bookId, metric) {
   if (spec.kind === "partial") {
     if (periodId !== MATCHED_PARTIAL.id) return { text, tone: "neutral", basis: "ช่วงไม่ครบเดือน ไม่ได้เทียบเดือนเต็ม" };
     const base = totalsFor(bookTotals, MATCHED_PARTIAL.baseId, bookId);
-    if (!base) return { text, tone: "neutral", basis: "ไม่มี 1–7 ต.ค. ในชุดนี้" };
+    if (!base) return { text, tone: "neutral", basis: "ไม่มี 1–8 ต.ค. ในชุดนี้" };
     return {
       text,
       tone: metricTone(metric, value, readMetric(base, metric)),
@@ -134,13 +134,13 @@ export function roasTrend(bookTotals, periodId, bookId) {
     }
     const base = totalsFor(bookTotals, MATCHED_PARTIAL.baseId, bookId);
     if (!base || rates(base).roas == null) {
-      return trend(text, "neutral", "ไม่มี 1–7 ต.ค. ในชุดนี้", "ไม่มีฐาน 1–7 ต.ค.");
+      return trend(text, "neutral", "ไม่มี 1–8 ต.ค. ในชุดนี้", "ไม่มีฐาน 1–8 ต.ค.");
     }
     return trend(
       text,
       metricTone("roas", roas, rates(base).roas),
       `เทียบ ${MATCHED_PARTIAL.baseLabel} ของเล่มนี้ ไม่ใช่เกณฑ์กำไร`,
-      "เทียบ 1–7 ต.ค.",
+      "เทียบ 1–8 ต.ค.",
     );
   }
   const prior = fullPrior(periodId);
@@ -171,7 +171,7 @@ export function revenueTrend(bookTotals, periodId, bookId) {
     }
     previous = totalsFor(bookTotals, MATCHED_PARTIAL.baseId, bookId);
     basis = `เทียบ ${MATCHED_PARTIAL.baseLabel}`;
-    if (!previous) return { text: "—", tone: "neutral", basis: "ไม่มี 1–7 ต.ค. ในชุดนี้" };
+    if (!previous) return { text: "—", tone: "neutral", basis: "ไม่มี 1–8 ต.ค. ในชุดนี้" };
   } else {
     const prior = fullPrior(periodId);
     if (!prior) return { text: "—", tone: "neutral", basis: "ไม่มีเดือนก่อนในชุดนี้" };

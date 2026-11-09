@@ -9,8 +9,8 @@ import {
   trendScale,
   trendSegments,
   trendSeries,
-} from "/shared/chart-data.js?v=20261109t113";
-import { metricCell } from "/shared/history.js?v=20261109t113";
+} from "/shared/chart-data.js?v=20261109t114";
+import { metricCell } from "/shared/history.js?v=20261109t114";
 
 const BOOK_COLOR = {
   Mind: "#1E2A5A",
@@ -39,7 +39,7 @@ export function renderTrendChart(parent, opts) {
   head.append(el("h3", "", `${metric.label} แต่ละเล่ม · พ.ค.–ต.ค. 2569`));
   head.append(metricSelect(opts));
   section.append(head);
-  section.append(el("p", "chart-note", "พ.ค.–ต.ค. สเกลเดียวกัน เริ่มที่ 0 ไม่รวม 1–7 พ.ย. และไม่ได้เทียบเดือนก่อน"));
+  section.append(el("p", "chart-note", "พ.ค.–ต.ค. สเกลเดียวกัน เริ่มที่ 0 ไม่รวม 1–8 พ.ย. และไม่ได้เทียบเดือนก่อน"));
   const readout = el("p", "scatter-readout", "เลือกจุดเพื่อดูเดือน Spend และ Revenue");
   const grid = el("div", "trend-grid");
   const all = opts.books.map(([id]) => trendSeries(opts.deck.bookTotals, id, metric.key));
@@ -91,7 +91,7 @@ export function renderPeriodChart(parent, opts) {
   head.append(el("h3", "", `${metric.label} ของ 4 เล่ม · ${opts.periodLabel}`));
   head.append(metricSelect(opts));
   section.append(head);
-  const partial = opts.reportId === "nov1_7" ? `${opts.periodLabel} ไม่เต็มเดือน. ` : "";
+  const partial = opts.reportId === "nov1_8" ? `${opts.periodLabel} ไม่เต็มเดือน. ` : "";
   const note = metric.key === "revenue"
     ? partial + "รายได้ที่ Meta นับให้แอด (omni_purchase) ไม่ใช่ยอดขาย BEP และไม่ใช่เกณฑ์กำไร"
     : partial + "แท่งเริ่มที่ 0 เรียงตามเมตริกที่เลือก ไม่ได้บอกว่าเล่มไหนกำไร";
