@@ -1328,7 +1328,13 @@ body.mode-web .month-col { vertical-align: bottom; }
 body.mode-web .month-label, body.mode-web .month-partial { display: block; }
 body.mode-web .month-partial { font-size: 12px; font-weight: 400; color: #6B6890; }
 body.mode-web .scan-scroll { overflow-x: auto; }
-body.mode-web .ad-table { width: 1424px; min-width: 1424px; table-layout: fixed; border-collapse: collapse; }
+body.mode-web .filter-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; width: 100%; }
+body.mode-web .month-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+body.mode-web .month-chips button { height: 32px; border-radius: 999px; border: 1px solid #DDD8F3; background: #fff; color: #4B4870; padding: 0 12px; font-size: 13px; }
+body.mode-web .month-chips button.on { background: #DCFCE7; color: #166534; border-color: #86EFAC; }
+body.mode-web .filter-subtotal { margin: 0; width: 100%; color: #4B4870; font-size: 13px; font-weight: 500; }
+body.mode-web .ad-table { width: 1504px; min-width: 1504px; table-layout: fixed; border-collapse: collapse; }
+body.mode-web .ad-table th.wide, body.mode-web .ad-table th.wide .sort-key { overflow: visible; text-overflow: clip; letter-spacing: 0; white-space: nowrap; }
 body.mode-web .ad-table th, body.mode-web .ad-table td {
   height: 48px;
   padding: 0 8px;

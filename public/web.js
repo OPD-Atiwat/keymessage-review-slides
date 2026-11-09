@@ -1,14 +1,15 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261109t116";
-import { rates } from "/shared/metrics.js?v=20261109t116";
-import { comparisonRows } from "/shared/comparison.js?v=20261109t116";
-import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261109t116";
-import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261109t116";
-import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261109t116";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261109t116";
-import { OVERVIEW_METRICS, OVERVIEW_MONTHS, formatMetric, metricCell } from "/shared/history.js?v=20261109t116";
-import { overviewCondition, periodAdBaseline, conditionTone, readMetric } from "/shared/condition.js?v=20261109t116";
-import { mergeAdsByName } from "/shared/ad-merge.js?v=20261109t116";
-import { filterAds, sortAds } from "/shared/ad-query.js?v=20261109t116";
+import { analysisItemId } from "/shared/analysis.js?v=20261109t117";
+import { rates } from "/shared/metrics.js?v=20261109t117";
+import { comparisonRows } from "/shared/comparison.js?v=20261109t117";
+import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261109t117";
+import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261109t117";
+import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261109t117";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261109t117";
+import { OVERVIEW_METRICS, OVERVIEW_MONTHS, formatMetric, metricCell } from "/shared/history.js?v=20261109t117";
+import { overviewCondition, periodAdBaseline, conditionTone, readMetric } from "/shared/condition.js?v=20261109t117";
+import { mergeAdsByName } from "/shared/ad-merge.js?v=20261109t117";
+import { contentMonthOptions, filterByContentMonth } from "/shared/content-month.js?v=20261109t117";
+import { filterAds, sortAds } from "/shared/ad-query.js?v=20261109t117";
 import {
   CREATOR_METRICS,
   UNKNOWN_LABEL,
@@ -19,8 +20,8 @@ import {
   reconcileCreators,
   sortCreators,
   unknownCreator,
-} from "/shared/creator-rank.js?v=20261109t116";
-import { renderPeriodChart, renderScatter, renderTrendChart } from "/chart-view.js?v=20261109t116";
+} from "/shared/creator-rank.js?v=20261109t117";
+import { renderPeriodChart, renderScatter, renderTrendChart } from "/chart-view.js?v=20261109t117";
 
 const BOOKS = [
   ["Mind", "ถือไพ่เหนือกว่า"],
@@ -244,12 +245,14 @@ function bookTable(name, book, opts) {
     statusId: opts.statusId,
   });
   const grouped = mergeAdsByName(all);
-  const filtered = filterAds(grouped, { key: query.appliedKey || query.filterKey, min: query.appliedMin || "", max: query.appliedMax || "" });
-  const rows = filtered.ok ? sortAds(filtered.rows, query.sortKey, query.sortDir) : sortAds(grouped, query.sortKey, query.sortDir);
+  const byMonth = filterByContentMonth(grouped, query.contentMonths);
+  const filtered = filterAds(byMonth, { key: query.appliedKey || query.filterKey, min: query.appliedMin || "", max: query.appliedMax || "" });
+  const visible = filtered.ok ? filtered.rows : byMonth;
+  const rows = sortAds(visible, query.sortKey, query.sortDir);
   const head = el("header", "scan-top");
   const titles = el("div");
   titles.append(el("h2", "", `${name} · ${reportLabel(opts.reportId)}`));
-  titles.append(el("p", "scan-count", `${rows.length}/${all.length} แอด`));
+  titles.append(el("p", "scan-count", `${rows.length}/${grouped.length} แอด`));
   const caption = el("div", "page-caption");
   caption.append(el("p", "history-help", "เฉพาะรายการที่ยืนยันเล่มได้ · สีของแอดเทียบยอดเล่มช่วงนี้ · ไม่ใช่กำไร"));
   const method = el("details", "history-method");
@@ -261,9 +264,11 @@ function bookTable(name, book, opts) {
   head.append(titles);
   wrap.append(head);
   wrap.append(heroCard(totals, `${reportLabel(opts.reportId)} · ไม่ใช่ยอดที่กรอง`));
-  renderScatter(wrap, filtered.ok ? filtered.rows : all, baseline, opts);
+  renderScatter(wrap, visible, baseline, opts);
   const tools = el("div", "table-tools");
-  tools.append(legend(), filterBar(query, opts));
+  const filters = el("div", "filter-row");
+  filters.append(legend(), filterBar(query, opts), monthChips(grouped, query.contentMonths || [], (contentMonths) => opts.onQuery({ ...query, contentMonths })));
+  tools.append(filters, filterSubtotal(rows));
   wrap.append(tools);
   if (!filtered.ok) wrap.append(el("p", "metric-filter-error", filtered.message || query.error));
   else if (query.error) wrap.append(el("p", "metric-filter-error", query.error));
@@ -322,8 +327,55 @@ function filterBar(query, opts) {
       error: next.ok ? "" : next.message,
     });
   });
-  reset.addEventListener("click", () => opts.onQuery({ sortKey: "spend", sortDir: "desc", filterKey: "spend", min: "", max: "", appliedKey: "spend", appliedMin: "", appliedMax: "", error: "" }));
+  reset.addEventListener("click", () => opts.onQuery({ sortKey: "spend", sortDir: "desc", filterKey: "spend", min: "", max: "", appliedKey: "spend", appliedMin: "", appliedMax: "", contentMonths: [], error: "" }));
   return form;
+}
+
+function monthChips(rows, selected, onChange) {
+  const box = el("div", "month-chips");
+  box.setAttribute("role", "group");
+  box.setAttribute("aria-label", "กรองเดือนจากชื่อแอด");
+  const all = el("button", selected.length ? "" : "on", "ทั้งหมด");
+  all.type = "button";
+  all.dataset.contentMonth = "all";
+  all.setAttribute("aria-pressed", selected.length ? "false" : "true");
+  all.addEventListener("click", () => onChange([]));
+  box.append(all);
+  for (const option of contentMonthOptions(rows)) {
+    const on = selected.includes(option.id);
+    const chip = el("button", on ? "on" : "", `${option.label} (${option.count})`);
+    chip.type = "button";
+    chip.dataset.contentMonth = option.id;
+    chip.setAttribute("aria-pressed", on ? "true" : "false");
+    chip.addEventListener("click", () => {
+      const next = on ? selected.filter((id) => id !== option.id) : selected.concat(option.id);
+      onChange(next);
+    });
+    box.append(chip);
+  }
+  return box;
+}
+
+function filterSubtotal(rows) {
+  const totals = rows.reduce((sum, row) => {
+    sum.spend += Number(row.spend) || 0;
+    sum.revenue += Number(row.revenue) || 0;
+    sum.impressions += Number(row.impressions) || 0;
+    sum.chats += Number(row.chats) || 0;
+    sum.purchases += Number(row.purchases) || 0;
+    return sum;
+  }, { spend: 0, revenue: 0, impressions: 0, chats: 0, purchases: 0 });
+  const rate = rates(totals);
+  const line = el("p", "filter-subtotal", [
+    `ยอดแถวที่เห็น`,
+    `Spend ${baht(totals.spend)}`,
+    `Revenue ${baht(totals.revenue)}`,
+    `ROAS ${rate.roas == null ? "—" : rate.roas.toFixed(2)}`,
+    `Messages ${num(totals.chats)}`,
+    `Cost per Message ${rate.costPerMsg == null ? "—" : baht(rate.costPerMsg)}`,
+    `Purchases ${num(totals.purchases)}`,
+  ].join(" · "));
+  return line;
 }
 
 function bookDot(bookId) {
@@ -406,7 +458,7 @@ function adTable(rows, bookBase, query, opts) {
   const table = document.createElement("table");
   table.className = "ad-table";
   const colgroup = document.createElement("colgroup");
-  for (const width of ["40px", "320px", "110px", "90px", "96px", "96px", "96px", "96px", "96px", "96px", "96px", "96px", "96px"]) {
+  for (const width of ["40px", "320px", "110px", "90px", "96px", "96px", "96px", "96px", "176px", "96px", "96px", "96px", "96px"]) {
     const col = document.createElement("col");
     col.style.width = width;
     colgroup.append(col);
@@ -419,7 +471,7 @@ function adTable(rows, bookBase, query, opts) {
   head.append(el("th", "", "Creator"));
   head.append(el("th", "", "Content"));
   for (const [key, label] of QUERY_METRICS) {
-    const cell = el("th", "num", "");
+    const cell = el("th", key === "costPerMsg" ? "num wide" : "num", "");
     const button = el("button", "sort-key", label + (query.sortKey === key ? (query.sortDir === "desc" ? " ↓" : " ↑") : ""));
     button.type = "button";
     button.dataset.sort = key;
@@ -730,7 +782,11 @@ function creatorAds(groups, opts) {
   }
   const history = creatorHistory(opts.deck.ads, opts.creatorBook || "all", tag, "roas");
   panel.append(el("p", "creator-note", `ROAS พ.ค.–ต.ค. ของป้ายนี้: ${history.map((point) => `${point.short} ${point.value == null ? "—" : point.value.toFixed(2)}`).join(" · ")}. เดือนที่ว่างคือไม่มีรายการของป้ายนี้ ไม่ใช่วันเปิดตัว และไม่ได้เทียบเดือนก่อน. 1–7 พ.ย. ไม่อยู่บนเส้นเดือนเต็ม.`));
-  const sorted = sortAds(group.ads, opts.creatorSort.key === "cvrProxy" ? "cvrProxy" : opts.creatorSort.key, opts.creatorSort.dir);
+  const selectedMonths = opts.creatorMonths || [];
+  const monthRows = filterByContentMonth(group.ads, selectedMonths);
+  panel.append(monthChips(group.ads, selectedMonths, (creatorMonths) => opts.onCreatorMonths(creatorMonths)));
+  panel.append(filterSubtotal(monthRows));
+  const sorted = sortAds(monthRows, opts.creatorSort.key === "cvrProxy" ? "cvrProxy" : opts.creatorSort.key, opts.creatorSort.dir);
   for (const ad of sorted) {
     const row = el("article", "creator-ad");
     const name = el("button", "ad-name creator-ad-name", ad.adName);

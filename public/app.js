@@ -1,11 +1,11 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261109t116";
-import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261109t116";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261109t116";
-import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261109t116";
-import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261109t116";
-import { contentBadge } from "/shared/status-labels.js?v=20261109t116";
-import { renderWeb } from "/web.js?v=20261109t116";
-import { defaultCreatorDir } from "/shared/creator-rank.js?v=20261109t116";
+import { analysisItemId } from "/shared/analysis.js?v=20261109t117";
+import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261109t117";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261109t117";
+import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261109t117";
+import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261109t117";
+import { contentBadge } from "/shared/status-labels.js?v=20261109t117";
+import { renderWeb } from "/web.js?v=20261109t117";
+import { defaultCreatorDir } from "/shared/creator-rank.js?v=20261109t117";
 
 const BOOKS = [
   { id: "Mind", name: "ถือไพ่เหนือกว่า", cls: "mind" },
@@ -44,11 +44,11 @@ const PERIOD_IDS = ["nov1_8", "oct", "sep", "aug", "jul", "jun", "may"];
 const adState = { period: "nov1_8", book: "", tag: "", sort: "revenue", q: "", page: 0, bodyKey: "", contentId: "all", statusId: "all" };
 let statusData = { ads_by_id: {}, summary: {} };
 let previewManifest = { coverage: "pending", ads: {} };
-let tableQuery = { sortKey: "spend", sortDir: "desc", filterKey: "spend", min: "", max: "", appliedKey: "spend", appliedMin: "", appliedMax: "", error: "" };
+let tableQuery = { sortKey: "spend", sortDir: "desc", filterKey: "spend", min: "", max: "", appliedKey: "spend", appliedMin: "", appliedMax: "", contentMonths: [], error: "" };
 let chartMetric = "roas";
 
 function resetTableQuery() {
-  tableQuery = { sortKey: "spend", sortDir: "desc", filterKey: "spend", min: "", max: "", appliedKey: "spend", appliedMin: "", appliedMax: "", error: "" };
+  tableQuery = { sortKey: "spend", sortDir: "desc", filterKey: "spend", min: "", max: "", appliedKey: "spend", appliedMin: "", appliedMax: "", contentMonths: [], error: "" };
 }
 let creatorSort = { key: "spend", dir: "desc" };
 let webView = { view: "overview", book: "Mind", creatorBook: "all", creatorFocus: null, pages: {}, historyStart: 0 };
@@ -1390,6 +1390,11 @@ function showWeb() {
     pages: webView.pages,
     previews: previewManifest,
     query: tableQuery,
+    creatorMonths: webView.creatorMonths || [],
+    onCreatorMonths: (creatorMonths) => {
+      webView.creatorMonths = creatorMonths;
+      showWeb();
+    },
     chartMetric,
     onChartMetric: (key) => {
       chartMetric = key;
@@ -1719,6 +1724,7 @@ function bindWeb() {
     adState.period = event.target.value;
     adState.page = 0;
     resetTableQuery();
+    webView.creatorMonths = [];
     for (const key of Object.keys(webView.pages)) delete webView.pages[key];
     syncAsof();
     refreshViews();

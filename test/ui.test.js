@@ -261,10 +261,10 @@ test("November overview and Mind book stay on the selected period", async () => 
     await page.click(".metric-filter button[type='submit']");
     await page.waitForFunction(() => {
       const count = document.querySelector(".scan-count").textContent;
-      return /^\d+\/33/.test(count) && !count.startsWith("32/") && !count.startsWith("33/");
+      return /^\d+\/32/.test(count) && !count.startsWith("32/");
     });
     const filteredCount = await page.$eval(".scan-count", (node) => node.textContent);
-    assert.match(filteredCount, /^\d+\/33/);
+    assert.match(filteredCount, /^\d+\/32/);
     assert.match(await page.$eval(".scan-total", (node) => node.textContent), /39,817/);
     await page.screenshot({ path: "/opt/cursor/artifacts/mind-nov-book-1366.png" });
     await page.screenshot({ path: "/workspace/docs/progress/mind-nov-book-1366.png" });
@@ -282,8 +282,18 @@ test("November overview and Mind book stay on the selected period", async () => 
     assert.match(await page.$eval(".metric-filter-error", (node) => node.textContent), /มากกว่า/);
     assert.equal(await page.$eval(".scan-count", (node) => node.textContent), filteredCount);
     await page.click(".metric-reset");
-    await page.waitForFunction(() => document.querySelector(".scan-count").textContent === "32/33 แอด");
+    await page.waitForFunction(() => document.querySelector(".scan-count").textContent === "32/32 แอด");
     assert.equal(await page.$$eval(".scan-row", (nodes) => nodes.length), 32);
+    assert.deepEqual(await page.$$eval(".month-chips button", (nodes) => nodes.map((node) => node.textContent)), ["ทั้งหมด", "11.26 (6)", "10.26 (15)", "09.26 (6)", "08.26 (4)", "07.26 (1)"]);
+    const headerFit = await page.$eval("[data-sort='costPerMsg']", (node) => ({ text: node.textContent, fits: node.scrollWidth <= node.parentElement.clientWidth + 1 }));
+    assert.match(headerFit.text, /^Cost per Message/);
+    assert.equal(headerFit.fits, true);
+    await page.click("[data-content-month='2026-11']");
+    await page.waitForFunction(() => document.querySelector(".scan-count").textContent.startsWith("6/"));
+    assert.match(await page.$eval(".filter-subtotal", (node) => node.textContent), /Cost per Message/);
+    assert.match(await page.$eval(".scan-total", (node) => node.textContent), /39,817/);
+    await page.click("[data-content-month='all']");
+    await page.waitForFunction(() => document.querySelector(".scan-count").textContent === "32/32 แอด");
     await page.$eval(".scatter-block", (node) => node.scrollIntoView({ block: "center" }));
     await page.screenshot({ path: "/opt/cursor/artifacts/mind-nov-unfiltered-1366.png" });
     await page.screenshot({ path: "/workspace/docs/progress/mind-nov-unfiltered-1366.png" });
