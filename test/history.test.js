@@ -60,11 +60,13 @@ test("a missing period is blank, and November is not judged against a full month
   assert.equal(totalsFor(deck.bookTotals, "may", "Mind"), null);
   assert.equal(totalsFor({}, "sep", "Mind"), null);
   const sep = roasTrend(deck.bookTotals, "sep", "Mind");
-  assert.equal(sep.short, "เทียบ ส.ค.");
+  assert.equal(sep.short, "ไม่เทียบ");
+  assert.equal(sep.tone, "neutral");
   const oct = roasTrend(deck.bookTotals, "oct", "Mind");
   assert.equal(oct.text, "0.69");
-  assert.equal(oct.tone, "worse");
-  assert.equal(oct.short, "เทียบ ก.ย.");
+  assert.equal(oct.tone, "neutral");
+  assert.equal(oct.short, "ไม่เทียบ");
+  assert.match(oct.basis, /mom_eligible/);
   const nov = roasTrend(deck.bookTotals, "nov1_7", "Mind");
   assert.equal(nov.text, "0.89");
   assert.equal(nov.tone, "neutral");
@@ -80,8 +82,9 @@ test("a missing period is blank, and November is not judged against a full month
 
 test("revenue change is directional text and skips a full-month base for November", () => {
   const oct = revenueTrend(deck.bookTotals, "oct", "Mind");
-  assert.equal(oct.tone, "worse");
-  assert.match(oct.text, /-/);
+  assert.equal(oct.tone, "neutral");
+  assert.equal(oct.text, "—");
+  assert.match(oct.basis, /mom_eligible/);
   const nov = revenueTrend(deck.bookTotals, "nov1_7", "Coworkers");
   assert.equal(nov.text, "—");
   assert.match(nov.basis, /ไม่มี 1–7 ต\.ค\./);
@@ -102,7 +105,8 @@ test("revenue change is directional text and skips a full-month base for Novembe
   assert.equal(octSpend.tone, "volume");
   const octRoas = metricCell(deck.bookTotals, "oct", "Mind", "roas");
   assert.equal(octRoas.text, "0.69");
-  assert.equal(octRoas.tone, "worse");
+  assert.equal(octRoas.tone, "neutral");
+  assert.match(octRoas.basis, /mom_eligible/);
   const novRoas = metricCell(deck.bookTotals, "nov1_7", "Mind", "roas");
   assert.equal(novRoas.text, "0.89");
   assert.equal(novRoas.tone, "neutral");

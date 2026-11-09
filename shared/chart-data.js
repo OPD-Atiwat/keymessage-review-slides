@@ -70,6 +70,7 @@ export function scatterPoints(ads) {
     return {
       adId: ad.adId,
       name: ad.adName,
+      creator: ad.creatorTag || "",
       spend,
       revenue: ad.revenue,
       chats: ad.chats,
@@ -103,25 +104,19 @@ export function axisTicks(min, max, target = 4) {
   return ticks;
 }
 
-export function scatterLayout(points, baseline, width = 640, height = 200) {
+export function scatterLayout(points, baseline, width = 640, height = 320) {
   const plot = points.filter((point) => point.plot);
   const spends = plot.map((point) => point.spend);
   const roases = plot.map((point) => point.roas).concat(baseline == null ? [] : [baseline]);
-  const xMax = Math.max(1, ...spends, 0) * 1.08;
-  let yMin = Math.min(0, ...roases);
-  let yMax = Math.max(0, ...roases);
-  if (yMin === yMax) {
-    yMin -= 0.2;
-    yMax += 0.2;
-  } else {
-    const pad = (yMax - yMin) * 0.14;
-    yMin -= pad;
-    yMax += pad;
-  }
-  const padL = 46;
-  const padR = 42;
-  const padT = 16;
-  const padB = 36;
+  const rawX = Math.max(0, ...spends, 0);
+  const rawY = Math.max(0, ...roases, 0);
+  const xMax = rawX === 0 ? 1 : rawX * 1.1;
+  const yMin = 0;
+  const yMax = rawY === 0 ? 1 : rawY * 1.1;
+  const padL = 52;
+  const padR = 16;
+  const padT = 28;
+  const padB = 44;
   const innerW = Math.max(1, width - padL - padR);
   const innerH = Math.max(1, height - padT - padB);
   const xOf = (spend) => padL + (spend / xMax) * innerW;
@@ -146,13 +141,32 @@ export function scatterLayout(points, baseline, width = 640, height = 200) {
   };
 }
 
-export function trendScale(values, zero) {
+/** Shared axis from zero. ROAS may use 0–2.5 only when every point fits. Other metrics never inherit that ceiling. */
+export function trendScale(values, key) {
   const finite = values.filter((value) => value != null && Number.isFinite(value));
-  let min = finite.length ? Math.min(...finite) : 0;
-  let max = finite.length ? Math.max(...finite) : 1;
-  if (zero) min = Math.min(0, min);
-  if (min === max) max = min + 1;
-  else if (!zero) min -= (max - min) * 0.12;
-  max += (max - min) * 0.16;
-  return { min, max, ticks: axisTicks(min, max, 3) };
+  const dataMax = finite.length ? Math.max(...finite) : 0;
+  let max;
+  if (key === "roas" && dataMax <= 2.5) max = 2.5;
+  else {
+    const padded = dataMax === 0 ? 1 : dataMax * 1.1;
+    const step = niceStep(padded, 4);
+    max = Math.ceil((padded - 1e-9) / step) * step;
+    if (!(max > dataMax)) max = padded;
+  }
+  const ticks = axisTicks(0, max, 4).filter((value) => value >= -1e-9 && value <= max + 1e-6);
+  if (!ticks.length || ticks[0] > 0) ticks.unshift(0);
+  return { min: 0, max, ticks };
+}
+
+export function formatAxisTick(key, value) {
+  if (key === "roas") {
+    const text = Number(value.toFixed(2));
+    return text.toString();
+  }
+  if (key === "cvrProxy") return `${Math.round(value * 100)}%`;
+  if (key === "chats" || key === "purchases") {
+    if (Math.abs(value) >= 1000) return `${Math.round(value / 100) / 10}k`;
+    return String(Math.round(value));
+  }
+  return formatSpendTick(value);
 }

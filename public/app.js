@@ -1,10 +1,11 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261108t109";
-import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261108t109";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261108t109";
-import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261108t109";
-import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261108t109";
-import { contentBadge } from "/shared/status-labels.js?v=20261108t109";
-import { renderWeb } from "/web.js?v=20261108t109";
+import { analysisItemId } from "/shared/analysis.js?v=20261109t110";
+import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261109t110";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261109t110";
+import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261109t110";
+import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261109t110";
+import { contentBadge } from "/shared/status-labels.js?v=20261109t110";
+import { renderWeb } from "/web.js?v=20261109t110";
+import { defaultCreatorDir } from "/shared/creator-rank.js?v=20261109t110";
 
 const BOOKS = [
   { id: "Mind", name: "ถือไพ่เหนือกว่า", cls: "mind" },
@@ -48,12 +49,15 @@ let chartMetric = "roas";
 function resetTableQuery() {
   tableQuery = { sortKey: "spend", sortDir: "desc", filterKey: "spend", min: "", max: "", appliedKey: "spend", appliedMin: "", appliedMax: "", error: "" };
 }
-let webView = { view: "overview", book: "Mind", pages: {}, historyStart: 0 };
+let creatorSort = { key: "spend", dir: "desc" };
+let webView = { view: "overview", book: "Mind", creatorBook: "all", creatorFocus: null, pages: {}, historyStart: 0 };
 
 function setWebView(patch) {
   webView = {
-    view: patch.view,
+    view: patch.view || webView.view,
     book: patch.book === undefined ? webView.book : patch.book,
+    creatorBook: patch.creatorBook === undefined ? (webView.creatorBook || "all") : patch.creatorBook,
+    creatorFocus: Object.prototype.hasOwnProperty.call(patch, "creatorFocus") ? patch.creatorFocus : webView.creatorFocus,
     pages: webView.pages,
     historyStart: webView.historyStart || 0,
   };
@@ -1375,6 +1379,9 @@ function showWeb() {
     status: statusData,
     view: webView.view,
     book: webView.book,
+    creatorBook: webView.creatorBook || "all",
+    creatorFocus: webView.creatorFocus,
+    creatorSort,
     reportId: readPeriod(),
     contentId: adState.contentId,
     statusId: adState.statusId,
@@ -1404,6 +1411,41 @@ function showWeb() {
       markNav();
       showWeb();
       rememberRoute(false);
+    },
+    onCreatorScope: (id) => {
+      setWebView({ view: "creator", creatorBook: id, creatorFocus: null });
+      markNav();
+      showWeb();
+      rememberRoute(false);
+    },
+    onCreatorMetric: (key) => {
+      creatorSort = { key, dir: defaultCreatorDir(key) };
+      showWeb();
+    },
+    onCreatorSort: (key) => {
+      creatorSort = creatorSort.key === key
+        ? { key, dir: creatorSort.dir === "desc" ? "asc" : "desc" }
+        : { key, dir: defaultCreatorDir(key) };
+      showWeb();
+    },
+    onCreatorOpen: (tag) => {
+      setWebView({ view: "creator", creatorFocus: tag });
+      markNav();
+      showWeb();
+      rememberRoute(false);
+      document.getElementById("creator-ads")?.focus();
+    },
+    onCreatorClose: () => {
+      const tag = webView.creatorFocus;
+      if (routeFromHash().view === "creator" && routeFromHash().creatorFocus != null) {
+        pendingCreatorFocus = tag;
+        history.back();
+        return;
+      }
+      setWebView({ view: "creator", creatorFocus: null });
+      showWeb();
+      rememberRoute(true);
+      focusCreator(tag);
     },
     onInspect: (bookId, periodId) => {
       const node = document.getElementById("report-period");
@@ -1554,23 +1596,81 @@ async function removeAnalysis(itemId) {
   }
 }
 
+let pendingCreatorFocus = null;
+
+function readHash() {
+  const raw = location.hash.replace(/^#/, "");
+  try { return decodeURIComponent(raw); }
+  catch { return raw; }
+}
+
 function routeFromHash() {
-  const text = decodeURIComponent(location.hash.replace(/^#/, ""));
+  const text = readHash();
   const books = ["Mind", "Coworkers", "SurvivalGuide", "Trap"];
-  if (text === "analysis") return { view: "analysis" };
-  if (books.includes(text)) return { view: "book", book: text };
+  if (text === "analysis") return { view: "analysis", creatorFocus: null };
+  if (text === "creator" || text.startsWith("creator/")) {
+    const parts = text.split("/");
+    const scope = parts[1] || "all";
+    const token = parts.slice(2).join("/");
+    const creatorBook = scope === "all" || books.includes(scope) ? scope : "all";
+    const creatorFocus = token === "" ? null : token === "~unknown" ? "" : token;
+    return { view: "creator", creatorBook, creatorFocus };
+  }
+  if (books.includes(text)) return { view: "book", book: text, creatorFocus: null };
   if (text.startsWith("book/")) {
     const book = text.slice(5);
-    if (books.includes(book)) return { view: "book", book };
+    if (books.includes(book)) return { view: "book", book, creatorFocus: null };
   }
-  return { view: "overview" };
+  return { view: "overview", creatorFocus: null };
+}
+
+function routeHash() {
+  if (webView.view === "book") return `#book/${webView.book}`;
+  if (webView.view === "creator") {
+    const scope = webView.creatorBook || "all";
+    if (webView.creatorFocus == null) return `#creator/${scope}`;
+    const token = webView.creatorFocus ? encodeURIComponent(webView.creatorFocus) : "~unknown";
+    return `#creator/${scope}/${token}`;
+  }
+  return `#${webView.view}`;
 }
 
 function rememberRoute(replace) {
-  const hash = webView.view === "book" ? `#book/${webView.book}` : `#${webView.view}`;
+  const hash = routeHash();
   const url = `${location.pathname}${location.search}${hash}`;
   if (replace) history.replaceState({ view: webView.view, book: webView.book }, "", url);
   else if (location.hash !== hash) history.pushState({ view: webView.view, book: webView.book }, "", url);
+}
+
+function focusCreator(tag) {
+  const token = tag ? CSS.escape(tag) : "~unknown";
+  document.querySelector(`[data-creator="${token}"]`)?.focus();
+}
+
+function applyRoute() {
+  const route = routeFromHash();
+  const same = webView.view === route.view
+    && (route.book == null || webView.book === route.book)
+    && (route.creatorBook == null || (webView.creatorBook || "all") === route.creatorBook)
+    && webView.creatorFocus === route.creatorFocus;
+  if (same) {
+    if (pendingCreatorFocus != null && webView.creatorFocus == null) focusCreator(pendingCreatorFocus);
+    pendingCreatorFocus = null;
+    return;
+  }
+  const previousFocus = webView.creatorFocus;
+  setWebView({
+    view: route.view,
+    book: route.book,
+    creatorBook: route.creatorBook,
+    creatorFocus: route.creatorFocus,
+  });
+  markNav();
+  showWeb();
+  const restore = pendingCreatorFocus;
+  pendingCreatorFocus = null;
+  if (restore != null && webView.creatorFocus == null) focusCreator(restore);
+  else if (previousFocus != null && webView.creatorFocus == null && webView.view === "creator") focusCreator(previousFocus);
 }
 
 function bindWeb() {
@@ -1578,7 +1678,7 @@ function bindWeb() {
     button.addEventListener("click", () => {
       const view = button.dataset.view === "present" ? "overview" : button.dataset.view;
       if (view === "book") resetTableQuery();
-      setWebView({ view, book: button.dataset.book || webView.book });
+      setWebView({ view, book: button.dataset.book || webView.book, creatorFocus: null });
       document.body.classList.add("mode-web");
       document.body.classList.remove("mode-present");
       markNav();
@@ -1586,11 +1686,25 @@ function bindWeb() {
       rememberRoute(false);
     });
   });
-  window.addEventListener("popstate", () => {
-    const route = routeFromHash();
-    setWebView({ view: route.view, book: route.book || webView.book });
-    markNav();
-    showWeb();
+  window.addEventListener("popstate", applyRoute);
+  window.addEventListener("hashchange", applyRoute);
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    const dialog = document.getElementById("zoom");
+    if (dialog && dialog.open) return;
+    if (webView.view === "creator" && webView.creatorFocus != null) {
+      event.preventDefault();
+      const tag = webView.creatorFocus;
+      if (routeFromHash().creatorFocus != null) {
+        pendingCreatorFocus = tag;
+        history.back();
+        return;
+      }
+      setWebView({ view: "creator", creatorFocus: null });
+      showWeb();
+      rememberRoute(true);
+      focusCreator(tag);
+    }
   });
   const full = document.getElementById("full");
   if (full) full.addEventListener("click", () => {
@@ -1649,6 +1763,8 @@ async function init() {
   const route = routeFromHash();
   webView.view = route.view;
   if (route.book) webView.book = route.book;
+  if (route.creatorBook) webView.creatorBook = route.creatorBook;
+  webView.creatorFocus = route.creatorFocus;
   bindWeb();
   const response = await fetch("/data/deck.json");
   if (!response.ok) throw new Error("โหลดข้อมูลไม่ได้");

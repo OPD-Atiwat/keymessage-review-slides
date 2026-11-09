@@ -37,6 +37,13 @@ export const HISTORY_WINDOW = 4;
 
 export const SOURCE_CUTOFF = "2026-11-07";
 
+/**
+ * Every book-period row in the source bundle has mom_eligible false, including full months.
+ * The published deck does not copy that flag. A full calendar month is not eligibility.
+ */
+export const MONTH_COMPARISON_OPEN = false;
+const MONTH_CLOSED = "ชุดข้อมูลปิดการเทียบเดือนก่อน (mom_eligible เป็นเท็จทุกช่วง) ค่านี้เป็นยอดของเดือนนั้น";
+
 export function visibleHistory(start = 0) {
   const max = Math.max(0, OVERVIEW_MONTHS.length - HISTORY_WINDOW);
   const safe = Math.max(0, Math.min(start, max));
@@ -77,6 +84,7 @@ export function metricCell(bookTotals, periodId, bookId, metric) {
   const text = formatMetric(metric, value);
   const tone = metricTone(metric, value, value);
   if (tone === "volume") return { text, tone: "volume", basis: "ปริมาณ ไม่ได้แปลว่าดีหรือด้อย" };
+  if (!MONTH_COMPARISON_OPEN && spec.kind === "full") return { text, tone: "neutral", basis: MONTH_CLOSED };
   if (spec.kind === "partial") {
     if (periodId !== MATCHED_PARTIAL.id) return { text, tone: "neutral", basis: "ช่วงไม่ครบเดือน ไม่ได้เทียบเดือนเต็ม" };
     const base = totalsFor(bookTotals, MATCHED_PARTIAL.baseId, bookId);
@@ -119,6 +127,7 @@ export function roasTrend(bookTotals, periodId, bookId) {
   if (!current) return trend("—", "neutral", "ไม่มียอดในช่วงนี้", "—");
   const roas = rates(current).roas;
   const text = roas == null ? "—" : roas.toFixed(2);
+  if (!MONTH_COMPARISON_OPEN && spec.kind === "full") return trend(text, "neutral", MONTH_CLOSED, "ไม่เทียบ");
   if (spec.kind === "partial") {
     if (periodId !== MATCHED_PARTIAL.id) {
       return trend(text, "neutral", "ช่วงไม่ครบเดือน ไม่ได้เทียบเดือนเต็ม", "ไม่ได้เทียบเดือนเต็ม");
@@ -153,6 +162,7 @@ export function revenueTrend(bookTotals, periodId, bookId) {
   if (!spec) return { text: "—", tone: "neutral", basis: "ไม่มีช่วงนี้ในชุดที่ยืนยัน" };
   const current = totalsFor(bookTotals, periodId, bookId);
   if (!current) return { text: "—", tone: "neutral", basis: "ไม่มียอดในช่วงนี้" };
+  if (!MONTH_COMPARISON_OPEN && spec.kind === "full") return { text: "—", tone: "neutral", basis: MONTH_CLOSED };
   let previous = null;
   let basis = "";
   if (spec.kind === "partial") {

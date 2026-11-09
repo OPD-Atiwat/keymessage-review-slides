@@ -1,13 +1,24 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261108t109";
-import { rates } from "/shared/metrics.js?v=20261108t109";
-import { comparisonRows } from "/shared/comparison.js?v=20261108t109";
-import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261108t109";
-import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261108t109";
-import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261108t109";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261108t109";
-import { OVERVIEW_METRICS, OVERVIEW_MONTHS, metricCell } from "/shared/history.js?v=20261108t109";
-import { filterAds, sortAds } from "/shared/ad-query.js?v=20261108t109";
-import { renderPeriodChart, renderScatter, renderTrendChart } from "/chart-view.js?v=20261108t109";
+import { analysisItemId } from "/shared/analysis.js?v=20261109t110";
+import { rates } from "/shared/metrics.js?v=20261109t110";
+import { comparisonRows } from "/shared/comparison.js?v=20261109t110";
+import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261109t110";
+import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261109t110";
+import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261109t110";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261109t110";
+import { OVERVIEW_METRICS, OVERVIEW_MONTHS, formatMetric, metricCell } from "/shared/history.js?v=20261109t110";
+import { filterAds, sortAds } from "/shared/ad-query.js?v=20261109t110";
+import {
+  CREATOR_METRICS,
+  UNKNOWN_LABEL,
+  coverageOf,
+  creatorGroups,
+  creatorHistory,
+  knownCreators,
+  reconcileCreators,
+  sortCreators,
+  unknownCreator,
+} from "/shared/creator-rank.js?v=20261109t110";
+import { renderPeriodChart, renderScatter, renderTrendChart } from "/chart-view.js?v=20261109t110";
 
 const BOOKS = [
   ["Mind", "ถือไพ่เหนือกว่า"],
@@ -62,13 +73,14 @@ export function renderWeb(root, opts) {
   root.replaceChildren();
   if (opts.view === "analysis") renderAnalysis(root, opts);
   else if (opts.view === "book") renderBook(root, opts);
+  else if (opts.view === "creator") renderCreator(root, opts);
   else renderOverview(root, opts);
 }
 
 function renderOverview(root, opts) {
   const snap = opts.deck.snapshot || {};
   root.append(el("h2", "web-title", "ภาพรวมรายเดือน"));
-  root.append(el("p", "history-help", `${snap.coverage || "เฉพาะรายการที่ยืนยันเล่มได้"} · ถึง ${snap.frozenThrough || "7 พ.ย. 2569"} · ตรวจ ${snap.pulled || ""} · สีบนอัตราเป็นแนวโน้มในเล่ม ไม่ใช่กำไร · 1–7 พ.ย. ไม่ได้เทียบเดือนเต็ม · — ไม่ใช่ 0`));
+  root.append(el("p", "history-help", `${snap.coverage || "เฉพาะรายการที่ยืนยันเล่มได้"} · ถึง ${snap.frozenThrough || "7 พ.ย. 2569"} · ตรวจ ${snap.pulled || ""} · Revenue คือ omni_purchase ไม่ใช่ BEP และไม่ใช่กำไร · CVR คือ Purchases ÷ Messages (ซื้อ/แชท) · 1–7 พ.ย. ไม่ใช่เดือนเต็ม · — ไม่ใช่ 0 · ไม่ได้เทียบเดือนก่อน`));
   const method = el("details", "history-method");
   method.append(el("summary", "", "วิธีนับ"));
   method.append(el("p", "history-help", [snap.channel, snap.method, snap.attribution, snap.revision, snap.optionalCrossRange].filter(Boolean).join(" · ")));
@@ -199,12 +211,12 @@ function bookTable(name, book, opts) {
   const titles = el("div");
   titles.append(el("h2", "", `${name} · ${reportLabel(opts.reportId)}`));
   titles.append(el("p", "scan-count", `${rows.length}/${all.length} แอด`));
-  head.append(titles, legend());
+  titles.append(el("p", "scan-count", "CVR คือ Purchases ÷ Messages (ซื้อ/แชท) ไม่ใช่ CVR ที่ Meta จับคู่. Revenue คือ omni_purchase ไม่ใช่ BEP. สีของแอดเทียบกับยอดเล่มในช่วงเดียวกัน ไม่ใช่กำไร และไม่ได้เทียบเดือนก่อน."));
+  titles.append(legend());
+  head.append(titles);
   wrap.append(head, filterBar(query, opts));
   if (!filtered.ok) wrap.append(el("p", "metric-filter-error", filtered.message || query.error));
   else if (query.error) wrap.append(el("p", "metric-filter-error", query.error));
-  const compare = compareLine(opts, book);
-  if (compare) wrap.append(compare);
   wrap.append(totalRow(totals, baseline, reportLabel(opts.reportId)));
   renderScatter(wrap, filtered.ok ? filtered.rows : all, baseline, opts);
   const scroller = el("div", "scan-scroll");
@@ -269,7 +281,7 @@ function filterBar(query, opts) {
 
 function totalRow(totals, baseline, label) {
   const rate = rates(totals);
-  const row = el("div", "scan-total scan-cols");
+  const row = el("div", "scan-total kpi-grid");
   const labelCell = el("span", "scan-total-label", `ยอดเล่มทั้งช่วง ${label} · ไม่ใช่ยอดที่กรอง`);
   row.append(labelCell);
   row.append(metric("Spend", baht(totals.spend)));
@@ -279,15 +291,17 @@ function totalRow(totals, baseline, label) {
   row.append(metric("Cost per Message", rate.costPerMsg == null ? "—" : baht(rate.costPerMsg)));
   row.append(metric("CPM", rate.cpm == null ? "—" : baht(rate.cpm)));
   row.append(metric("Purchases", num(totals.purchases)));
-  row.append(metric("CVR", rate.cvrProxy == null ? "—" : (rate.cvrProxy * 100).toFixed(1) + "%"));
+  row.append(metric("CVR", rate.cvrProxy == null ? "—" : (rate.cvrProxy * 100).toFixed(1) + "%", "ซื้อ/แชท"));
   row.append(metric("AOV", rate.aov == null ? "—" : baht(rate.aov)));
-  row.append(el("span", "", ""));
   return row;
 }
 
-function metric(label, value) {
+function metric(label, value, cue) {
   const cell = el("span", "scan-total-bit");
-  cell.append(el("small", "", label), document.createTextNode(value));
+  const small = el("small", "", label);
+  cell.append(small);
+  if (cue) cell.append(el("small", "metric-cue", cue));
+  cell.append(document.createTextNode(value));
   return cell;
 }
 
@@ -367,6 +381,240 @@ function pickButton(ad, opts) {
 
 const PERIOD_LABEL = { may: "พ.ค. 2569", jun: "มิ.ย. 2569", jul: "ก.ค. 2569", aug: "ส.ค. 2569", sep: "ก.ย. 2569", oct: "ต.ค. 2569", oct1_7: "1–7 ต.ค.", nov1_7: "1–7 พ.ย." };
 const BOOK_LABEL = Object.fromEntries(BOOKS);
+
+function creatorToken(tag) {
+  return tag ? tag : "~unknown";
+}
+
+function creatorValue(group, key) {
+  if (key === "spend" || key === "revenue" || key === "chats" || key === "purchases") return group[key];
+  return group[key];
+}
+
+function renderCreator(root, opts) {
+  const scope = opts.creatorBook || "all";
+  const sort = opts.creatorSort || { key: "roas", dir: "desc" };
+  const metric = CREATOR_METRICS.find((item) => item.key === sort.key) || CREATOR_METRICS[2];
+  const groups = creatorGroups(opts.deck.ads, opts.reportId, scope);
+  const ranked = sortCreators(knownCreators(groups), metric.key, sort.dir);
+  const unknown = unknownCreator(groups);
+  const coverage = coverageOf(groups);
+  const check = reconcileCreators(groups, opts.deck.bookTotals, opts.reportId, scope);
+  const scopeName = scope === "all" ? "ภาพรวม" : (BOOKS.find((item) => item[0] === scope)?.[1] || scope);
+
+  root.append(el("h2", "web-title", `อันดับ Creator · เรียงตาม ${metric.label}`));
+  const switcher = el("div", "book-switch");
+  const scopes = [["all", "ภาพรวม"], ...BOOKS];
+  for (const [id, name] of scopes) {
+    const button = el("button", scope === id ? "on" : "", name);
+    button.type = "button";
+    button.dataset.creatorScope = id;
+    button.setAttribute("aria-pressed", scope === id ? "true" : "false");
+    button.addEventListener("click", () => opts.onCreatorScope(id));
+    switcher.append(button);
+  }
+  root.append(switcher);
+
+  const controls = el("div", "creator-controls");
+  const metricLabel = el("label", "", "เรียงตาม");
+  const select = document.createElement("select");
+  select.id = "creator-metric";
+  select.setAttribute("aria-label", "เรียงตาม");
+  for (const item of CREATOR_METRICS) select.append(new Option(item.label, item.key));
+  select.value = metric.key;
+  select.addEventListener("change", () => opts.onCreatorMetric(select.value));
+  metricLabel.append(select);
+  const dir = el("button", "creator-dir", sort.dir === "asc" ? "น้อยไปมาก" : "มากไปน้อย");
+  dir.type = "button";
+  dir.setAttribute("aria-pressed", "true");
+  dir.addEventListener("click", () => opts.onCreatorSort(metric.key));
+  controls.append(metricLabel, dir);
+  root.append(controls);
+
+  root.append(el("p", "creator-note", `${scopeName} · ${reportLabel(opts.reportId)} · ${sort.dir === "asc" ? "น้อยไปมาก" : "มากไปน้อย"} · ไม่ใช่อันดับคนเก่ง`));
+  root.append(el("p", "creator-note", scope === "all"
+    ? "รวม 4 เล่มที่ยืนยันแล้ว สินค้าไม่เหมือนกัน การเทียบในเล่มเดียวชัดกว่า"
+    : "เทียบในเล่มนี้เล่มเดียว"));
+  const cover = coverage.total === 0
+    ? "ไม่มีรายการที่ยืนยันได้"
+    : coverage.blank === 0
+      ? `ช่วงนี้มีป้าย Creator ครบ ${coverage.tagged} จาก ${coverage.total} แอด ไม่ได้เดาชื่อเพิ่ม`
+      : `ช่วงนี้มีป้าย Creator ${coverage.tagged} จาก ${coverage.total} แอด อีก ${coverage.blank} แอดไม่มีป้ายในชุดนี้ จึงอยู่กลุ่มไม่ทราบ Creator ไม่ได้เดาจากชื่อแอด`;
+  root.append(el("p", "creator-note", cover));
+  if (check.ok && coverage.total > 0) {
+    root.append(el("p", "creator-note", "ยอดทุกป้าย รวมกลุ่มไม่ทราบ Creator เท่ากับยอดชุดนี้ในช่วงที่เลือก"));
+  }
+
+  if (!ranked.length && !unknown) {
+    root.append(el("p", "history-help", "ไม่มีรายการที่ยืนยันได้"));
+    return;
+  }
+
+  root.append(creatorChart(ranked, metric, opts));
+  root.append(creatorTable(ranked, metric, sort, opts));
+  if (unknown) root.append(unknownBlock(unknown, opts));
+  if (opts.creatorFocus != null) root.append(creatorAds(groups, opts));
+
+  const method = el("details", "history-method");
+  method.append(el("summary", "", "วิธีจัดกลุ่ม"));
+  method.append(el("p", "creator-note", "จัดตามป้าย Creator ที่เก็บไว้ในชุดนี้ ไม่ได้เดาจากวงเล็บในชื่อแอด. Central, Central+Leef, Central+Park และ Central+Phum เป็นคนละแถว. ป้ายร่วมอยู่แถวเดียว ไม่ได้แบ่งยอดให้หลายคน. การจัดกลุ่มไม่ใช่สาเหตุของยอด และไม่ใช่ยอดขายทั้งธุรกิจ. Revenue คือ omni_purchase. CVR คือ Purchases ÷ Messages. พ.ค.–ส.ค. มีแอดที่ไม่มีป้าย ส่วน ก.ย., ต.ค. และ 1–7 พ.ย. มีป้ายครบในชุดนี้."));
+  root.append(method);
+}
+
+/** Provisional bars only. Replace this view when the data and design review lands. The table is the figure of record. */
+function creatorChart(ranked, metric, opts) {
+  const section = el("section", "chart-block creator-chart");
+  section.append(el("h3", "", `${metric.label} ของแต่ละ Creator`));
+  const finite = ranked.map((row) => row[metric.key]).filter((value) => value != null && Number.isFinite(Number(value)));
+  const max = finite.length ? Math.max(...finite.map(Number)) : 0;
+  if (!ranked.length) {
+    section.append(el("p", "creator-note", "ไม่มี Creator ที่รู้ชื่อในช่วงนี้"));
+    return section;
+  }
+  for (const [index, row] of ranked.entries()) {
+    const value = row[metric.key];
+    const missing = value == null || !Number.isFinite(Number(value));
+    const width = !missing && max > 0 ? Math.max(0, Math.min(100, (Number(value) / max) * 100)) : 0;
+    const button = el("button", "creator-bar");
+    button.type = "button";
+    button.dataset.creator = creatorToken(row.tag);
+    button.setAttribute("aria-label", `${index + 1} ${row.label} ${formatMetric(metric.key, missing ? null : value)} ${row.n} แอด`);
+    button.append(el("span", "creator-bar-name", `${row.label} · ${row.n} แอด`));
+    const track = el("span", "creator-bar-track");
+    const fill = el("i", "creator-bar-fill");
+    fill.style.width = width + "%";
+    track.append(fill);
+    button.append(track);
+    button.append(el("span", "creator-bar-value", formatMetric(metric.key, missing ? null : value)));
+    button.addEventListener("click", () => opts.onCreatorOpen(row.tag));
+    section.append(button);
+  }
+  return section;
+}
+
+function creatorTable(ranked, metric, sort, opts) {
+  const wrap = el("div", "creator-table-wrap");
+  const table = el("table", "creator-table");
+  const head = document.createElement("thead");
+  const hr = document.createElement("tr");
+  hr.append(el("th", "", "#"));
+  hr.append(el("th", "", "Creator"));
+  hr.append(el("th", "", "จำนวนแอด"));
+  for (const item of CREATOR_METRICS) {
+    const th = document.createElement("th");
+    const button = el("button", "sort-key", item.label + (sort.key === item.key ? (sort.dir === "desc" ? " ↓" : " ↑") : ""));
+    button.type = "button";
+    button.dataset.creatorSort = item.key;
+    button.setAttribute("aria-sort", sort.key === item.key ? (sort.dir === "asc" ? "ascending" : "descending") : "none");
+    button.addEventListener("click", () => opts.onCreatorSort(item.key));
+    th.append(button);
+    hr.append(th);
+  }
+  head.append(hr);
+  const body = document.createElement("tbody");
+  ranked.forEach((row, index) => {
+    const tr = document.createElement("tr");
+    tr.className = "creator-row" + (opts.creatorFocus === row.tag ? " on" : "");
+    tr.tabIndex = 0;
+    tr.dataset.creator = creatorToken(row.tag);
+    tr.setAttribute("role", "button");
+    const open = () => opts.onCreatorOpen(row.tag);
+    tr.addEventListener("click", open);
+    tr.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        open();
+      }
+    });
+    tr.append(el("td", "", String(index + 1)));
+    tr.append(el("td", "creator-name", row.label));
+    tr.append(el("td", "", String(row.n)));
+    for (const item of CREATOR_METRICS) {
+      const value = creatorValue(row, item.key);
+      const missing = value == null || !Number.isFinite(Number(value));
+      tr.append(el("td", "", formatMetric(item.key, missing ? null : value)));
+    }
+    body.append(tr);
+  });
+  table.append(head, body);
+  wrap.append(table);
+  return wrap;
+}
+
+function unknownBlock(unknown, opts) {
+  const box = el("section", "creator-unknown");
+  box.append(el("h3", "", UNKNOWN_LABEL));
+  box.append(el("p", "creator-note", `${unknown.n} แอด · Spend ${formatMetric("spend", unknown.spend)} · Revenue ${formatMetric("revenue", unknown.revenue)} · ROAS ${formatMetric("roas", unknown.roas)} · กลุ่มนี้ไม่อยู่ในอันดับคนที่รู้ชื่อ แต่ถูกนับในยอดรวม`));
+  const button = el("button", "", "ดูแอดในกลุ่มนี้");
+  button.type = "button";
+  button.dataset.creator = "~unknown";
+  button.addEventListener("click", () => opts.onCreatorOpen(""));
+  box.append(button);
+  return box;
+}
+
+function creatorAds(groups, opts) {
+  const tag = opts.creatorFocus;
+  const group = groups.find((row) => row.tag === tag);
+  const panel = el("section", "creator-ads");
+  panel.id = "creator-ads";
+  panel.tabIndex = -1;
+  const title = group ? group.label : UNKNOWN_LABEL;
+  panel.append(el("h3", "", `แอดของ ${title} · ${reportLabel(opts.reportId)}`));
+  const close = el("button", "creator-close", "ปิดรายการแอด");
+  close.type = "button";
+  close.addEventListener("click", () => opts.onCreatorClose());
+  panel.append(close);
+  panel.append(el("p", "creator-note", "จัดตามป้ายที่มีอยู่ ไม่ได้แปลว่าคนนี้ทำให้เกิดยอด. Revenue คือ omni_purchase ไม่ใช่ BEP. CVR คือ Purchases ÷ Messages (ซื้อ/แชท)."));
+  if (!group) {
+    panel.append(el("p", "creator-note", "ไม่มีแอดของป้ายนี้ในช่วงที่เลือก"));
+    return panel;
+  }
+  panel.append(el("p", "creator-note", `Spend ${formatMetric("spend", group.spend)} · Revenue ${formatMetric("revenue", group.revenue)} · ROAS ${formatMetric("roas", group.roas)} · Purchases ${formatMetric("purchases", group.purchases)} · ${group.n} แอด`));
+  if ((opts.creatorBook || "all") === "all") {
+    const mix = el("div", "creator-mix");
+    mix.append(el("p", "creator-note", "Spend ตามเล่มในช่วงนี้ เป็นส่วนผสมของสินค้า ไม่ใช่การเทียบความสามารถ"));
+    for (const [id, bookName] of BOOKS) {
+      const part = creatorGroups(opts.deck.ads, opts.reportId, id).find((row) => row.tag === tag);
+      const share = part && group.spend ? Math.round((part.spend / group.spend) * 100) : null;
+      mix.append(el("p", "creator-note", `${bookName} · Spend ${formatMetric("spend", part ? part.spend : null)} · Revenue ${formatMetric("revenue", part ? part.revenue : null)} · ROAS ${formatMetric("roas", part ? part.roas : null)} · Purchases ${formatMetric("purchases", part ? part.purchases : null)} · ${part ? part.n : 0} แอด${share == null ? "" : ` · ${share}% ของ Spend ป้ายนี้`}`));
+    }
+    panel.append(mix);
+  }
+  const history = creatorHistory(opts.deck.ads, opts.creatorBook || "all", tag, "roas");
+  panel.append(el("p", "creator-note", `ROAS พ.ค.–ต.ค. ของป้ายนี้: ${history.map((point) => `${point.short} ${point.value == null ? "—" : point.value.toFixed(2)}`).join(" · ")}. เดือนที่ว่างคือไม่มีรายการของป้ายนี้ ไม่ใช่วันเปิดตัว และไม่ได้เทียบเดือนก่อน. 1–7 พ.ย. ไม่อยู่บนเส้นเดือนเต็ม.`));
+  const sorted = sortAds(group.ads, opts.creatorSort.key === "cvrProxy" ? "cvrProxy" : opts.creatorSort.key, opts.creatorSort.dir);
+  for (const ad of sorted) {
+    const row = el("article", "creator-ad");
+    const name = el("button", "ad-name creator-ad-name", ad.adName);
+    name.type = "button";
+    name.title = ad.adName;
+    name.addEventListener("click", () => openDetail(ad, (opts.status.ads_by_id || {})[ad.adId], opts));
+    row.append(name);
+    const bookName = BOOKS.find((item) => item[0] === ad.book)?.[1] || ad.book;
+    row.append(el("p", "creator-note", bookName));
+    const bits = el("div", "creator-ad-metrics");
+    const rate = rates(ad);
+    const cells = [
+      ["Spend", formatMetric("spend", ad.spend)],
+      ["Revenue", formatMetric("revenue", ad.revenue)],
+      ["ROAS", formatMetric("roas", rate.roas)],
+      ["Messages", formatMetric("chats", ad.chats)],
+      ["Cost per Message", formatMetric("costPerMsg", rate.costPerMsg)],
+      ["CPM", formatMetric("cpm", rate.cpm)],
+      ["Purchases", formatMetric("purchases", ad.purchases)],
+      ["CVR", formatMetric("cvrProxy", rate.cvrProxy)],
+      ["AOV", formatMetric("aov", rate.aov)],
+    ];
+    for (const [label, value] of cells) {
+      const cell = el("span", "", `${label} ${value}`);
+      bits.append(cell);
+    }
+    row.append(bits);
+    panel.append(row);
+  }
+  return panel;
+}
 
 function renderAnalysis(root, opts) {
   const page = el("section", "analysis-page");
@@ -508,7 +756,8 @@ function openDetail(ad, record, opts) {
     `ผลลัพธ์ช่วง ${reportLabel(opts.reportId)}`,
   ].join(" · ");
   const rate = rates(ad);
-  const bookRate = rates(opts.deck.bookTotals[opts.reportId][opts.book]);
+  const bookTotals = opts.deck.bookTotals[opts.reportId]?.[ad.book || opts.book];
+  const bookRate = bookTotals ? rates(bookTotals) : {};
   const bits = [
     ["Spend", baht(ad.spend), "volume"],
     ["Revenue", baht(ad.revenue), "volume"],

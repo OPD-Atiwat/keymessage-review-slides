@@ -12,6 +12,7 @@ import {
   scatterLayout,
   scatterPoints,
   trendSegments,
+  trendScale,
   trendSeries,
 } from "../shared/chart-data.js";
 
@@ -42,6 +43,34 @@ test("trend points match the monthly table and skip missing months and November"
   assert.equal(trendSeries(deck.bookTotals, "Mind", "roas")[0].value, null);
   assert.equal(trendSeries(deck.bookTotals, "Mind", "spend")[0].value, null);
   assert.equal(bookMetric(deck.bookTotals.oct.Mind, "roas").toFixed(2), "0.69");
+  const roasValues = books.flatMap(([id]) => trendSeries(deck.bookTotals, id, "roas").map((point) => point.value));
+  const roasScale = trendScale(roasValues, "roas");
+  assert.equal(roasScale.min, 0);
+  assert.equal(roasScale.max, 2.5);
+  assert.ok(Math.max(...roasValues.filter((value) => value != null)) <= roasScale.max);
+  const spendValues = books.flatMap(([id]) => trendSeries(deck.bookTotals, id, "spend").map((point) => point.value));
+  const spendScale = trendScale(spendValues, "spend");
+  assert.equal(spendScale.min, 0);
+  assert.ok(spendScale.max > Math.max(...spendValues.filter((value) => value != null)));
+  assert.notEqual(spendScale.max, 2.5);
+  const taller = trendScale([0.4, 3.2], "roas");
+  assert.ok(taller.max > 3.2);
+  assert.notEqual(taller.max, 2.5);
+  const expected = {
+    Mind: [null, null, 0.85, 0.96, 0.9, 0.69],
+    Coworkers: [2.16, 1.32, 1.18, 1.21, 1.21, 1.4],
+    SurvivalGuide: [null, null, null, null, 1.04, 0.91],
+    Trap: [1.52, 1.54, 1.67, 1.35, 1.32, 1.22],
+  };
+  for (const [id, values] of Object.entries(expected)) {
+    const series = trendSeries(deck.bookTotals, id, "roas").map((point) => (point.value == null ? null : Number(point.value.toFixed(2))));
+    assert.deepEqual(series, values, id);
+  }
+  const nov = periodSeries(deck.bookTotals, "nov1_7", books, "roas");
+  assert.equal(nov.find((item) => item.id === "Mind").value.toFixed(2), "0.89");
+  assert.equal(nov.find((item) => item.id === "Coworkers").value.toFixed(2), "1.61");
+  assert.equal(nov.find((item) => item.id === "SurvivalGuide").value.toFixed(2), "1.15");
+  assert.equal(nov.find((item) => item.id === "Trap").value.toFixed(2), "1.36");
 });
 
 test("the selected-period chart uses that period only, and a scatter keeps the unfiltered baseline", () => {
@@ -85,6 +114,18 @@ test("the selected-period chart uses that period only, and a scatter keeps the u
   assert.equal(zeroLayout.dots[0].y.toFixed(2), zeroTick.y.toFixed(2));
   assert.ok(layout.dots.every((dot) => dot.x <= layout.width - layout.padR && dot.y >= layout.padT));
   assert.equal(baseline.toFixed(2), "0.89");
+  assert.equal(Math.round(deck.bookTotals.nov1_7.Mind.spend * 100) / 100, 34889.59);
+  assert.equal(deck.bookTotals.nov1_7.Mind.revenue, 31096);
+  assert.equal(deck.bookTotals.nov1_7.Mind.chats, 453);
+  assert.equal(deck.bookTotals.nov1_7.Mind.purchases, 88);
+  const outlier = points.find((point) => point.adId === "120255152050450260");
+  assert.ok(outlier.roas > 9 && outlier.spend < 60);
+  const outlierDot = layout.dots.find((dot) => dot.adId === outlier.adId);
+  assert.ok(outlierDot.y >= layout.padT && outlierDot.y <= layout.height - layout.padB);
+  assert.ok(layout.yMax > outlier.roas);
+  const narrow = filterAds(ads, { key: "spend", min: "1000", max: "8000" });
+  assert.equal(narrow.rows.length, 11);
+  assert.equal(ads.length, 33);
   assert.equal(formatSpendTick(2000), "฿2k");
   const missing = scatterPoints([{ adId: "n", adName: "n", spend: 0, revenue: 0, impressions: 0, chats: 0, purchases: 0 }]);
   assert.equal(missing[0].roas, null);
