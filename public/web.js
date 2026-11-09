@@ -1,13 +1,13 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261108t108";
-import { rates } from "/shared/metrics.js?v=20261108t108";
-import { comparisonRows } from "/shared/comparison.js?v=20261108t108";
-import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261108t108";
-import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261108t108";
-import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261108t108";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261108t108";
-import { OVERVIEW_METRICS, OVERVIEW_MONTHS, metricCell } from "/shared/history.js?v=20261108t108";
-import { filterAds, sortAds } from "/shared/ad-query.js?v=20261108t108";
-import { renderPeriodChart, renderScatter, renderTrendChart } from "/chart-view.js?v=20261108t108";
+import { analysisItemId } from "/shared/analysis.js?v=20261108t109";
+import { rates } from "/shared/metrics.js?v=20261108t109";
+import { comparisonRows } from "/shared/comparison.js?v=20261108t109";
+import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261108t109";
+import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261108t109";
+import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261108t109";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261108t109";
+import { OVERVIEW_METRICS, OVERVIEW_MONTHS, metricCell } from "/shared/history.js?v=20261108t109";
+import { filterAds, sortAds } from "/shared/ad-query.js?v=20261108t109";
+import { renderPeriodChart, renderScatter, renderTrendChart } from "/chart-view.js?v=20261108t109";
 
 const BOOKS = [
   ["Mind", "ถือไพ่เหนือกว่า"],
@@ -84,6 +84,7 @@ function metricTable(bookTotals, bookId, name, opts) {
   const title = el("h3", "");
   const open = el("button", "metric-book-name", name);
   open.type = "button";
+  open.dataset.book = bookId;
   open.addEventListener("click", () => opts.onBook(bookId));
   title.append(open);
   section.append(title);
@@ -148,6 +149,16 @@ function exclusionNote(deck) {
 }
 
 function renderBook(root, opts) {
+  const switcher = el("div", "book-switch");
+  for (const [id, name] of BOOKS) {
+    const button = el("button", opts.book === id ? "on" : "", name);
+    button.type = "button";
+    button.dataset.book = id;
+    button.setAttribute("aria-pressed", opts.book === id ? "true" : "false");
+    button.addEventListener("click", () => opts.onBook(id));
+    switcher.append(button);
+  }
+  root.append(switcher);
   const name = BOOKS.find((item) => item[0] === opts.book)?.[1] || opts.book;
   root.append(bookTable(name, opts.book, opts, opts.book));
 }
@@ -313,7 +324,7 @@ function scanRow(ad, index, baseline, bookRate, record, opts) {
   title.type = "button";
   title.title = ad.adName;
   title.setAttribute("aria-label", ad.adName);
-  title.addEventListener("click", () => openDetail(ad));
+  title.addEventListener("click", () => openDetail(ad, record, opts));
   name.append(title);
   row.append(name);
   const creator = el("span", "scan-creator", ad.creatorTag || "—");
@@ -484,13 +495,61 @@ function compareLine(opts, book) {
   return line;
 }
 
-function openDetail(ad) {
+let detailReturn = null;
+
+function openDetail(ad, record, opts) {
   const dialog = document.getElementById("zoom");
-  const target = document.getElementById("zoom-img");
-  const caption = document.getElementById("zoom-caption");
-  target.hidden = true;
-  target.removeAttribute("src");
-  caption.textContent = ad.adName + (opening(ad) ? "\n" + opening(ad) : "");
+  detailReturn = document.activeElement;
+  document.getElementById("detail-name").textContent = ad.adName;
+  const content = contentBadge(record);
+  document.getElementById("detail-meta").textContent = [
+    ad.creatorTag ? `Creator ${ad.creatorTag}` : "ไม่ทราบ Creator",
+    content.text,
+    `ผลลัพธ์ช่วง ${reportLabel(opts.reportId)}`,
+  ].join(" · ");
+  const rate = rates(ad);
+  const bookRate = rates(opts.deck.bookTotals[opts.reportId][opts.book]);
+  const bits = [
+    ["Spend", baht(ad.spend), "volume"],
+    ["Revenue", baht(ad.revenue), "volume"],
+    ["ROAS", rate.roas == null ? "—" : rate.roas.toFixed(2), metricTone("roas", rate.roas, bookRate.roas)],
+    ["Messages", num(ad.chats), "volume"],
+    ["Cost per Message", rate.costPerMsg == null ? "—" : baht(rate.costPerMsg), metricTone("costPerMsg", rate.costPerMsg, bookRate.costPerMsg)],
+    ["CPM", rate.cpm == null ? "—" : baht(rate.cpm), metricTone("cpm", rate.cpm, bookRate.cpm)],
+    ["Purchases", num(ad.purchases), "volume"],
+    ["CVR", rate.cvrProxy == null ? "—" : (rate.cvrProxy * 100).toFixed(1) + "%", metricTone("cvrProxy", rate.cvrProxy, bookRate.cvrProxy)],
+    ["AOV", rate.aov == null ? "—" : baht(rate.aov), metricTone("aov", rate.aov, bookRate.aov)],
+  ];
+  const grid = document.getElementById("detail-metrics");
+  grid.replaceChildren();
+  for (const [label, value, tone] of bits) {
+    const cell = el("p", "detail-bit");
+    cell.append(el("small", "", label), document.createTextNode(value));
+    if (tone === "better" || tone === "worse") {
+      const higher = label === "ROAS" || label === "CVR" || label === "AOV";
+      const above = (tone === "better") === higher;
+      cell.append(el("em", "", above ? " สูงกว่าเส้นเล่ม" : " ต่ำกว่าเส้นเล่ม"));
+    }
+    grid.append(cell);
+  }
+  const source = document.getElementById("detail-source");
+  source.replaceChildren();
+  const href = ad.ig || ad.fb || "";
+  if (href) {
+    const link = document.createElement("a");
+    link.href = href;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = "ลิงก์โพสต์ที่มีอยู่";
+    source.append(link);
+  } else source.textContent = "ไม่มีลิงก์โพสต์ในชุดนี้";
+  document.getElementById("detail-note").textContent = "Revenue คือ omni_purchase ที่ Meta นับให้แอด ไม่ใช่ยอดขาย BEP. CVR คือ Purchases ÷ Messages ไม่ใช่ CVR ที่ Meta จับคู่. เส้นเล่มคือยอดทั้งช่วงที่เลือก ไม่ใช่เกณฑ์กำไร.";
+  if (!dialog.dataset.bound) {
+    dialog.addEventListener("close", () => {
+      if (detailReturn && detailReturn.focus) detailReturn.focus();
+    });
+    dialog.dataset.bound = "1";
+  }
   dialog.showModal();
 }
 

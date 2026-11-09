@@ -1,10 +1,10 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261108t108";
-import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261108t108";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261108t108";
-import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261108t108";
-import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261108t108";
-import { contentBadge } from "/shared/status-labels.js?v=20261108t108";
-import { renderWeb } from "/web.js?v=20261108t108";
+import { analysisItemId } from "/shared/analysis.js?v=20261108t109";
+import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261108t109";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261108t109";
+import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261108t109";
+import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261108t109";
+import { contentBadge } from "/shared/status-labels.js?v=20261108t109";
+import { renderWeb } from "/web.js?v=20261108t109";
 
 const BOOKS = [
   { id: "Mind", name: "ถือไพ่เหนือกว่า", cls: "mind" },
@@ -1403,6 +1403,19 @@ function showWeb() {
       setWebView({ view: "book", book: id });
       markNav();
       showWeb();
+      rememberRoute(false);
+    },
+    onInspect: (bookId, periodId) => {
+      const node = document.getElementById("report-period");
+      if (node && [...node.options].some((option) => option.value === periodId)) {
+        node.value = periodId;
+        adState.period = periodId;
+      }
+      resetTableQuery();
+      setWebView({ view: "book", book: bookId });
+      markNav();
+      showWeb();
+      rememberRoute(false);
     },
     onPage: (key, page) => {
       webView.pages[key] = page;
@@ -1419,7 +1432,7 @@ function showWeb() {
 
 function markNav() {
   document.querySelectorAll("#webnav button[data-view]").forEach((item) => {
-    const on = item.dataset.view === webView.view && (item.dataset.view !== "book" || item.dataset.book === webView.book);
+    const on = item.dataset.view === webView.view;
     item.classList.toggle("on", on);
     item.setAttribute("aria-pressed", on ? "true" : "false");
     if (on) item.setAttribute("aria-current", "page");
@@ -1541,16 +1554,43 @@ async function removeAnalysis(itemId) {
   }
 }
 
+function routeFromHash() {
+  const text = decodeURIComponent(location.hash.replace(/^#/, ""));
+  const books = ["Mind", "Coworkers", "SurvivalGuide", "Trap"];
+  if (text === "analysis") return { view: "analysis" };
+  if (books.includes(text)) return { view: "book", book: text };
+  if (text.startsWith("book/")) {
+    const book = text.slice(5);
+    if (books.includes(book)) return { view: "book", book };
+  }
+  return { view: "overview" };
+}
+
+function rememberRoute(replace) {
+  const hash = webView.view === "book" ? `#book/${webView.book}` : `#${webView.view}`;
+  const url = `${location.pathname}${location.search}${hash}`;
+  if (replace) history.replaceState({ view: webView.view, book: webView.book }, "", url);
+  else if (location.hash !== hash) history.pushState({ view: webView.view, book: webView.book }, "", url);
+}
+
 function bindWeb() {
   document.querySelectorAll("#webnav button[data-view]").forEach((button) => {
     button.addEventListener("click", () => {
       const view = button.dataset.view === "present" ? "overview" : button.dataset.view;
+      if (view === "book") resetTableQuery();
       setWebView({ view, book: button.dataset.book || webView.book });
       document.body.classList.add("mode-web");
       document.body.classList.remove("mode-present");
       markNav();
       showWeb();
+      rememberRoute(false);
     });
+  });
+  window.addEventListener("popstate", () => {
+    const route = routeFromHash();
+    setWebView({ view: route.view, book: route.book || webView.book });
+    markNav();
+    showWeb();
   });
   const full = document.getElementById("full");
   if (full) full.addEventListener("click", () => {
@@ -1567,27 +1607,6 @@ function bindWeb() {
     syncAsof();
     refreshViews();
   });
-  document.getElementById("content-month").addEventListener("change", (event) => {
-    adState.contentId = event.target.value;
-    adState.page = 0;
-    refreshViews();
-  });
-  document.getElementById("status-filter").addEventListener("change", (event) => {
-    adState.statusId = event.target.value;
-    adState.page = 0;
-    syncAsof();
-    refreshViews();
-  });
-  document.getElementById("creator-filter").addEventListener("change", (event) => {
-    adState.tag = event.target.value;
-    adState.page = 0;
-    refreshViews();
-  });
-  document.getElementById("sort-filter").addEventListener("change", (event) => {
-    adState.sort = event.target.value;
-    adState.page = 0;
-    refreshViews();
-  });
 }
 
 function refreshViews() {
@@ -1598,12 +1617,12 @@ function refreshViews() {
 function syncAsof() {
   const labels = { sep: "ก.ย. 2569 ทั้งเดือน", oct: "ต.ค. 2569 ทั้งเดือน", oct1_7: "1–7 ต.ค. 2569", nov1_7: "1–7 พ.ย. 2569" };
   const selected = document.getElementById("report-period").value;
-  document.getElementById("asof").textContent = "ถึง 7 พ.ย. 2569 · ไม่รวมวันนี้";
+  const asof = document.getElementById("asof");
+  if (asof) asof.textContent = "ถึง 7 พ.ย. 2569";
   const badge = document.getElementById("present-asof");
   if (badge) badge.textContent = labels[selected];
   const present = document.getElementById("present-period");
   if (present && present.value !== selected) present.value = selected;
-  document.getElementById("status-asof").hidden = document.getElementById("status-filter").value === "all";
 }
 
 function fillFilters() {
@@ -1612,27 +1631,24 @@ function fillFilters() {
     if (record.content_month) months.add(record.content_month);
   }
   const content = document.getElementById("content-month");
+  if (!content) return;
   for (const month of [...months].sort()) {
     const option = document.createElement("option");
     option.value = month;
     option.textContent = month + " จากชื่อแอด";
     content.append(option);
   }
-  const creator = document.getElementById("creator-filter");
-  creator.append(new Option("ทุกป้าย", ""));
-  for (const tag of [...new Set(deck.ads.map((ad) => ad.creatorTag))].sort((a, b) => a.localeCompare(b, "th"))) {
-    creator.append(new Option(tag, tag));
-  }
 }
 
 async function init() {
-  if (location.hash) history.replaceState(null, "", location.pathname + location.search);
   document.body.classList.add("mode-web");
   document.body.classList.remove("mode-present");
   const period = document.getElementById("report-period");
   if (period) period.value = "nov1_7";
   adState.period = "nov1_7";
-  webView.view = "overview";
+  const route = routeFromHash();
+  webView.view = route.view;
+  if (route.book) webView.book = route.book;
   bindWeb();
   const response = await fetch("/data/deck.json");
   if (!response.ok) throw new Error("โหลดข้อมูลไม่ได้");
@@ -1644,6 +1660,7 @@ async function init() {
   syncAsof();
   markNav();
   showWeb();
+  rememberRoute(true);
   document.body.dataset.hydrated = "1";
   await refreshSession();
 }

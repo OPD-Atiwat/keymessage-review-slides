@@ -3,19 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>วงคุย Key Message — 1–7 พ.ย. 2569</title>
-  <link rel="stylesheet" href="/styles.css?v=20261108t108">
+  <title>ผลโฆษณารายเล่ม</title>
+  <link rel="stylesheet" href="/styles.css?v=20261108t109">
 </head>
 <body class="mode-web">
   <div id="boot-error" hidden></div>
   <header id="webnav">
-    <strong>วงคุย Key Message</strong>
+    <strong>ผลโฆษณารายเล่ม</strong>
     <nav>
       <button type="button" data-view="overview" class="on" aria-pressed="true" aria-current="page">ภาพรวม</button>
-      <button type="button" data-view="book" data-book="Mind" aria-pressed="false">Mind</button>
-      <button type="button" data-view="book" data-book="Coworkers" aria-pressed="false">ออฟฟิศ</button>
-      <button type="button" data-view="book" data-book="SurvivalGuide" aria-pressed="false">Survival</button>
-      <button type="button" data-view="book" data-book="Trap" aria-pressed="false">กับดัก</button>
+      <button type="button" data-view="book" aria-pressed="false">รายเล่ม</button>
       <button type="button" data-view="analysis" aria-pressed="false">วิเคราะห์ต่อยอด</button>
     </nav>
     <label>ผลลัพธ์ช่วง
@@ -29,57 +26,24 @@
         <option value="may">พ.ค. 2569</option>
       </select>
     </label>
-    <span id="asof" class="asof">ถึง 7 พ.ย. 2569 · ไม่รวมวันนี้</span>
-    <span id="status-asof" class="asof status-asof" hidden>สถานะตรวจ 8 พ.ย. 11:39 ไม่ใช่ผลวันที่ 7</span>
-    <details class="more">
-      <summary>ตัวกรอง</summary>
-      <label>Content เดือน
-        <select id="content-month" aria-label="Content เดือน">
-          <option value="all">ทั้งหมด</option>
-          <option value="unknown">ไม่ระบุเดือน Content</option>
-        </select>
-      </label>
-      <label>สถานะตอนตรวจ
-        <select id="status-filter" aria-label="สถานะบัญชีตอนตรวจ">
-          <option value="all">ทั้งหมด</option>
-          <option value="ACTIVE">เปิดใช้งาน (ยังไม่ยืนยันการส่งจริง)</option>
-          <option value="PAUSED">หยุดชั่วคราว</option>
-          <option value="ADSET_PAUSED">ชุดโฆษณาหยุดชั่วคราว</option>
-          <option value="WITH_ISSUES">มีปัญหา</option>
-        </select>
-      </label>
-      <label>ป้าย
-        <select id="creator-filter" data-filter="creator-filter" aria-label="ป้ายในชื่อแอด"></select>
-      </label>
-      <label>เรียง
-        <select id="sort-filter" data-filter="sort-filter" aria-label="เรียง">
-          <option value="revenue">Revenue</option>
-          <option value="spend">Spend</option>
-          <option value="roas">ROAS</option>
-          <option value="chats">Messages</option>
-          <option value="costPerMsg">Cost per Message</option>
-          <option value="cpm">CPM</option>
-          <option value="purchases">Purchases</option>
-          <option value="cvr">CVR</option>
-          <option value="aov">AOV</option>
-        </select>
-      </label>
-    </details>
-    <button type="button" id="full">เต็มจอ</button>
+    <span id="asof" class="asof">ถึง 7 พ.ย. 2569</span>
   </header>
   <section id="web-panel">
     <div id="web-stage">
       <div id="web-main"></div>
     </div>
   </section>
-  <dialog id="zoom">
+  <dialog id="zoom" aria-labelledby="detail-name">
     <form method="dialog">
-      <img id="zoom-img" alt="">
-      <p id="zoom-caption"></p>
-      <button type="submit" value="cancel">ปิดภาพ</button>
+      <h2 id="detail-name"></h2>
+      <p id="detail-meta"></p>
+      <div id="detail-metrics"></div>
+      <p id="detail-source"></p>
+      <p id="detail-note"></p>
+      <button type="submit" value="cancel">ปิด</button>
     </form>
   </dialog>
-  <script src="/boot.js?v=20261108t108"></script>
-  <script type="module" src="/app.js?v=20261108t108"></script>
+  <script src="/boot.js?v=20261108t109"></script>
+  <script type="module" src="/app.js?v=20261108t109"></script>
 </body>
 </html>

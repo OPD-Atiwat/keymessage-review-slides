@@ -650,7 +650,17 @@ dialog a { color: #241e1c; }
 .scan-track i.neutral { background: #d5dbe8; }
 #web-stage:fullscreen { background: #f4f7fb; overflow: auto; padding: 12px 16px 20px; }
 #web-stage:fullscreen .slide-notes { display: block; }
-#webnav strong { font-size: 16px; }
+#webnav strong { font-size: 16px; color: #1b2744; }
+.book-switch { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.book-switch button { border: 0; background: #fff; color: #1b2744; border-radius: 999px; min-height: 36px; padding: 6px 12px; }
+.book-switch button.on { background: #d9f5e4; color: #0b6b38; }
+#zoom { border: 0; border-radius: 16px; max-width: 720px; width: calc(100% - 32px); padding: 16px 18px; color: #1b2744; }
+#zoom h2 { margin: 0 0 8px; font-size: 18px; line-height: 1.4; }
+#detail-meta, #detail-note, #detail-source { color: #31456f; font-size: 14px; }
+#detail-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 8px 0; }
+.detail-bit { margin: 0; background: #f4f7fb; border-radius: 10px; padding: 8px; }
+.detail-bit small { display: block; color: #60708f; }
+.period-row { border: 0; background: transparent; text-align: left; width: 100%; padding: 0; cursor: pointer; }
 #webnav nav { display: flex; flex-wrap: wrap; gap: 6px; }
 #webnav button, #webnav select {
   border: 0;

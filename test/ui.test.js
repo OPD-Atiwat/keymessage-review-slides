@@ -76,7 +76,10 @@ test("November overview and Mind book stay on the selected period", async () => 
       page.click("#login-form button"),
     ]);
     await page.waitForSelector("body[data-hydrated='1']");
-    assert.equal(await page.$("#viewport"), null);
+    assert.equal(await page.$eval("title", (node) => node.textContent), "ผลโฆษณารายเล่ม");
+    assert.equal((await page.$eval("#webnav", (node) => node.textContent)).includes("วงคุย"), false);
+    assert.equal(await page.$$eval("#webnav button[data-view]", (nodes) => nodes.map((node) => node.textContent).join(",")), "ภาพรวม,รายเล่ม,วิเคราะห์ต่อยอด");
+    assert.equal(await page.$("#full"), null);
     assert.equal(await page.$("#toolbar"), null);
     assert.equal(await page.$("[data-view='present']"), null);
     const logout = await page.$$eval("button", (nodes) => nodes.map((node) => node.textContent).filter((text) => text.includes("ออกจากระบบ")));
@@ -140,6 +143,11 @@ test("November overview and Mind book stay on the selected period", async () => 
     await page.screenshot({ path: "/workspace/docs/progress/overview-narrow.png" });
     await page.setViewport({ width: 1366, height: 768 });
 
+    await page.click(".period-row");
+    await page.waitForSelector(".book-switch");
+    assert.equal(await page.$eval("[data-view='book']", (node) => node.getAttribute("aria-pressed")), "true");
+    await page.click("[data-view='overview']");
+    await page.waitForSelector(".trend-chart");
     await page.click("[data-book='Mind']");
     await page.waitForSelector(".scan-row");
     const mind = await page.$eval("h2", (node) => node.textContent);
@@ -180,9 +188,20 @@ test("November overview and Mind book stay on the selected period", async () => 
     assert.equal(await page.$(".ref-page"), null);
     const labels = await page.$$eval("button", (nodes) => nodes.map((node) => node.textContent));
     assert.equal(labels.some((text) => text.includes("ถัดไป") || text.includes("ดูเพิ่ม")), false);
-    assert.equal(await page.$eval("#content-month", (node) => node.value), "all");
+    assert.equal(await page.$("#content-month"), null);
     assert.equal(await page.$(".scan-row .scan-status"), null);
     assert.equal(await page.$(".scan-row img"), null);
+    await page.click(".ad-name");
+    await page.waitForSelector("#zoom[open]");
+    assert.ok((await page.$eval("#detail-name", (node) => node.textContent)).length > 8);
+    assert.match(await page.$eval("#detail-metrics", (node) => node.textContent), /Spend/);
+    assert.match(await page.$eval("#detail-metrics", (node) => node.textContent), /CVR/);
+    assert.match(await page.$eval("#detail-note", (node) => node.textContent), /omni_purchase/);
+    assert.equal(await page.$$eval(".pick-btn.on", (nodes) => nodes.length), 0);
+    await page.screenshot({ path: "/opt/cursor/artifacts/ad-detail-1366.png" });
+    await page.screenshot({ path: "/workspace/docs/progress/ad-detail-1366.png" });
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.querySelector("#zoom[open]"));
     assert.match(await page.$eval(".scatter-block .chart-note", (node) => node.textContent), /ไม่แปลว่ากำไร/);
     const xTicks = await page.$$eval(".scatter-chart .x-tick", (nodes) => nodes.map((node) => node.textContent));
     const yTicks = await page.$$eval(".scatter-chart .y-tick", (nodes) => nodes.map((node) => node.textContent));

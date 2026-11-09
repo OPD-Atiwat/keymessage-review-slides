@@ -8,7 +8,7 @@ import {
   trendScale,
   trendSegments,
   trendSeries,
-} from "/shared/chart-data.js?v=20261108t108";
+} from "/shared/chart-data.js?v=20261108t109";
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -39,7 +39,7 @@ export function renderTrendChart(parent, opts) {
     const series = trendSeries(opts.deck.bookTotals, id, metric.key);
     const panel = el("article", "chart-panel");
     panel.append(el("h4", "", name));
-    panel.append(trendSvg(series, scale, metric.key));
+    panel.append(trendSvg(series, scale, metric.key, (periodId) => opts.onInspect && opts.onInspect(id, periodId)));
     panel.append(dataTable(series.map((point) => [point.short, formatChartValue(metric.key, point.value)])));
     grid.append(panel);
   }
@@ -59,7 +59,9 @@ export function renderPeriodChart(parent, opts) {
   const max = Math.max(...series.map((item) => item.value || 0), 0);
   const list = el("div", "period-chart");
   for (const item of series) {
-    const row = el("div", "period-row");
+    const row = el("button", "period-row");
+    row.type = "button";
+    row.addEventListener("click", () => opts.onInspect && opts.onInspect(item.id, opts.reportId));
     row.append(el("span", "period-name", item.name));
     const track = el("span", "period-track");
     if (item.value != null && max > 0) {
@@ -147,7 +149,7 @@ function metricSelect(opts) {
   return select;
 }
 
-function trendSvg(series, scale, key) {
+function trendSvg(series, scale, key, onPoint) {
   const width = 320;
   const height = 132;
   const padL = 34;
@@ -180,7 +182,15 @@ function trendSvg(series, scale, key) {
     label.textContent = point.short;
     svg.append(label);
     if (point.value == null) return;
-    svg.append(svgEl("circle", { cx: xOf(index), cy: yOf(point.value), r: 3.5, class: "trend-dot" }));
+    const dot = svgEl("circle", { cx: xOf(index), cy: yOf(point.value), r: 6, class: "trend-dot" });
+    dot.setAttribute("role", "button");
+    dot.setAttribute("tabindex", "0");
+    dot.setAttribute("aria-label", `${point.short} ${formatChartValue(key, point.value)}`);
+    dot.addEventListener("click", () => onPoint && onPoint(point.id));
+    dot.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") onPoint && onPoint(point.id);
+    });
+    svg.append(dot);
   });
   const last = [...series].reverse().find((point) => point.value != null);
   if (last) {
