@@ -1,0 +1,3 @@
+IBM Plex Sans Thai is licensed under the SIL Open Font License 1.1.
+The font files in this folder were embedded with the frozen review deck so the slides render offline.
+Source: https://github.com/IBM/plex
