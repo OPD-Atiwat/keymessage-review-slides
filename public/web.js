@@ -1,12 +1,12 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261109t112";
-import { rates } from "/shared/metrics.js?v=20261109t112";
-import { comparisonRows } from "/shared/comparison.js?v=20261109t112";
-import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261109t112";
-import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261109t112";
-import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261109t112";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261109t112";
-import { OVERVIEW_METRICS, OVERVIEW_MONTHS, formatMetric, metricCell } from "/shared/history.js?v=20261109t112";
-import { filterAds, sortAds } from "/shared/ad-query.js?v=20261109t112";
+import { analysisItemId } from "/shared/analysis.js?v=20261109t113";
+import { rates } from "/shared/metrics.js?v=20261109t113";
+import { comparisonRows } from "/shared/comparison.js?v=20261109t113";
+import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261109t113";
+import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261109t113";
+import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261109t113";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261109t113";
+import { OVERVIEW_METRICS, OVERVIEW_MONTHS, formatMetric, metricCell } from "/shared/history.js?v=20261109t113";
+import { filterAds, sortAds } from "/shared/ad-query.js?v=20261109t113";
 import {
   CREATOR_METRICS,
   UNKNOWN_LABEL,
@@ -17,8 +17,8 @@ import {
   reconcileCreators,
   sortCreators,
   unknownCreator,
-} from "/shared/creator-rank.js?v=20261109t112";
-import { renderPeriodChart, renderScatter, renderTrendChart } from "/chart-view.js?v=20261109t112";
+} from "/shared/creator-rank.js?v=20261109t113";
+import { renderPeriodChart, renderScatter, renderTrendChart } from "/chart-view.js?v=20261109t113";
 
 const BOOKS = [
   ["Mind", "ถือไพ่เหนือกว่า"],
@@ -242,13 +242,16 @@ function bookTable(name, book, opts) {
   method.append(el("summary", "", "วิธีนับ"));
   method.append(el("p", "history-help", "CVR คือ Purchases ÷ Messages (ซื้อ/แชท) ไม่ใช่ CVR ที่ Meta จับคู่. Revenue คือ omni_purchase ไม่ใช่ BEP. ไม่ได้เทียบเดือนก่อน. ยอดเล่มไม่เปลี่ยนเมื่อกรองแอด."));
   caption.append(method);
-  titles.append(caption, legend());
+  titles.append(caption);
   head.append(titles);
-  wrap.append(head, filterBar(query, opts));
-  if (!filtered.ok) wrap.append(el("p", "metric-filter-error", filtered.message || query.error));
-  else if (query.error) wrap.append(el("p", "metric-filter-error", query.error));
+  wrap.append(head);
   wrap.append(heroCard(totals, `${reportLabel(opts.reportId)} · ไม่ใช่ยอดที่กรอง`));
   renderScatter(wrap, filtered.ok ? filtered.rows : all, baseline, opts);
+  const tools = el("div", "table-tools");
+  tools.append(legend(), filterBar(query, opts));
+  wrap.append(tools);
+  if (!filtered.ok) wrap.append(el("p", "metric-filter-error", filtered.message || query.error));
+  else if (query.error) wrap.append(el("p", "metric-filter-error", query.error));
   const scroller = el("div", "scan-scroll");
   scroller.append(columnHead(baseline, query, opts));
   const bookRate = rates(totals);

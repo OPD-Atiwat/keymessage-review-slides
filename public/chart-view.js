@@ -9,8 +9,8 @@ import {
   trendScale,
   trendSegments,
   trendSeries,
-} from "/shared/chart-data.js?v=20261109t112";
-import { metricCell } from "/shared/history.js?v=20261109t112";
+} from "/shared/chart-data.js?v=20261109t113";
+import { metricCell } from "/shared/history.js?v=20261109t113";
 
 const BOOK_COLOR = {
   Mind: "#1E2A5A",
@@ -132,91 +132,72 @@ export function renderPeriodChart(parent, opts) {
 
 export function renderScatter(parent, ads, baseline, opts) {
   const points = scatterPoints(ads);
-  const layout = scatterLayout(points, baseline, 640, 320);
+  const layout = scatterLayout(points, baseline, 1100, 320);
   const section = el("section", "chart-block scatter-block");
   section.append(el("h3", "", "Spend กับ ROAS ของแอดในช่วงนี้"));
-  section.append(el("p", "chart-note", `เส้นประคือ ROAS ทั้งเล่ม ${baseline == null ? "—" : baseline.toFixed(2)} จากยอดที่ไม่ได้กรอง จุดสีกรมท่าอยู่เหนือเส้น จุดสีลาเวนเดอร์อยู่ใต้เส้น และสูงกว่าเส้นไม่แปลว่ากำไร`));
+  section.append(el("p", "chart-note", `เส้นประคือ ROAS ทั้งเล่ม ${baseline == null ? "—" : baseline.toFixed(2)} จากยอดที่ไม่ได้กรอง จุดทึบอยู่เหนือเส้น จุดขอบอยู่ใต้เส้น และสูงกว่าเส้นไม่แปลว่ากำไร`));
   const host = el("div", "scatter-host");
-  const svg = svgEl("svg", { viewBox: `0 0 ${layout.width} ${layout.height}`, class: "chart scatter-chart", role: "img" });
+  const svg = svgEl("svg", { viewBox: `0 0 ${layout.width} ${layout.height}`, class: "chart scatter-chart", role: "img", preserveAspectRatio: "none" });
   const bookId = opts?.book || "Mind";
   const bookColor = BOOK_COLOR[bookId] || "#1E2A5A";
   const display = scatterDisplay(layout);
+  host.style.setProperty("--book", bookColor);
   if (display.baseY != null) {
     svg.append(svgEl("line", { x1: layout.padL, y1: display.baseY, x2: layout.width - layout.padR, y2: display.baseY, class: "chart-base" }));
-    const labelY = Math.max(layout.padT + 14, display.baseY - 8);
-    const chip = svgEl("rect", { x: layout.padL + 4, y: labelY - 12, width: 118, height: 16, rx: 4, class: "chart-base-chip" });
-    svg.append(chip);
-    const baseLabel = svgEl("text", { x: layout.padL + 8, y: labelY, class: "chart-base-label" });
-    baseLabel.textContent = `ROAS ทั้งเล่ม ${baseline.toFixed(2)}`;
-    svg.append(baseLabel);
-  }
-  for (const tick of layout.xTicks) {
-    const label = svgEl("text", { x: tick.x, y: layout.height - layout.padB + 14, class: "chart-tick x-tick", "text-anchor": "middle" });
-    label.textContent = tick.label;
-    svg.append(label);
   }
   for (const tick of display.yTicks) {
-    const label = svgEl("text", { x: layout.padL - 6, y: tick.y + 4, class: "chart-tick y-tick", "text-anchor": "end" });
-    label.textContent = tick.label;
-    svg.append(label);
+    svg.append(svgEl("line", { x1: layout.padL, y1: tick.y, x2: layout.width - layout.padR, y2: tick.y, class: "trend-gridline" }));
+    const label = el("span", "scatter-ylab y-tick", tick.label);
+    label.style.top = `${(tick.y / layout.height) * 100}%`;
+    host.append(label);
   }
-  const xLabel = svgEl("text", { x: layout.width / 2, y: layout.height - 6, class: "chart-axis-label", "text-anchor": "middle" });
-  xLabel.textContent = "Spend";
-  svg.append(xLabel);
-  const yLabel = svgEl("text", { x: 14, y: 14, class: "chart-axis-label" });
-  yLabel.textContent = "ROAS";
-  svg.append(yLabel);
-  const labeled = scatterCallouts(layout.dots);
+  for (const tick of layout.xTicks) {
+    const label = el("span", "scatter-xlab x-tick", tick.label);
+    label.style.left = `${(tick.x / layout.width) * 100}%`;
+    host.append(label);
+  }
+  const xLabel = el("span", "scatter-axis", "Spend");
+  host.append(xLabel);
+  host.append(svg);
+  const selected = el("span", "scatter-selected");
+  selected.hidden = true;
+  const pinned = [];
   for (const dot of layout.dots) {
-    const button = el("button", "scatter-hit");
-    button.type = "button";
     const shown = display.place(dot);
+    const above = baseline != null && dot.roas >= baseline;
+    const button = el("button", shown.pinned ? "scatter-pin" : `scatter-hit scatter-point ${above || baseline == null ? "above" : "below"}`);
+    button.type = "button";
     button.style.left = `${(shown.x / layout.width) * 100}%`;
     button.style.top = `${(shown.y / layout.height) * 100}%`;
     button.dataset.adId = dot.adId;
     button.setAttribute("aria-label", `${dot.name} Spend ${formatChartValue("spend", dot.spend)} Revenue ${formatChartValue("revenue", dot.revenue)} Messages ${formatChartValue("chats", dot.chats)} Purchases ${formatChartValue("purchases", dot.purchases)} ROAS ${formatChartValue("roas", dot.roas)}`);
-    button.addEventListener("click", () => locateRow(dot.adId));
+    const choose = () => {
+      locateRow(dot.adId);
+      showReadout(readout, dot);
+      host.querySelectorAll(".scatter-point.is-on, .scatter-pin.is-on").forEach((node) => node.classList.remove("is-on"));
+      button.classList.add("is-on");
+      selected.hidden = false;
+      selected.textContent = dot.creator || dot.name.slice(0, 18);
+      selected.style.left = button.style.left;
+      selected.style.top = button.style.top;
+    };
+    button.addEventListener("click", choose);
     button.addEventListener("focus", () => showReadout(readout, dot));
     host.append(button);
-    const above = baseline != null && dot.roas >= baseline;
-    const circle = svgEl("circle", {
-      cx: shown.x,
-      cy: shown.y,
-      r: 4,
-      class: above || baseline == null ? "scatter-dot" : "scatter-dot below",
-      fill: above || baseline == null ? bookColor : "#EDE9FE",
-      stroke: bookColor,
-      "stroke-width": above || baseline == null ? (bookId === "Trap" ? 1 : 0) : 1.5,
-      "fill-opacity": "0.9",
-    });
-    circle.dataset.adId = dot.adId;
-    svg.append(circle);
-    if (shown.pinned) {
-      const flag = svgEl("text", { x: shown.x + 6, y: shown.y + 4, class: "scatter-callout" });
-      flag.textContent = formatChartValue("roas", dot.roas);
-      svg.append(flag);
-    }
+    if (shown.pinned) pinned.push(dot);
   }
-  const placed = [];
-  for (const dot of labeled) {
-    const shown = display.place(dot);
-    let x = shown.x + 8;
-    let y = shown.y - 8;
-    let anchor = "start";
-    if (x > layout.width - 70) {
-      x = shown.x - 8;
-      anchor = "end";
-    }
-    if (placed.some((item) => Math.abs(item.x - x) < 48 && Math.abs(item.y - y) < 14)) y += 14;
-    if (y < 12) y = shown.y + 14;
-    placed.push({ x, y });
-    const text = svgEl("text", { x, y, class: "scatter-callout", "text-anchor": anchor });
-    text.textContent = dot.creator || "ไม่มีป้าย";
-    svg.append(text);
+  if (display.baseY != null) {
+    const baseLabel = el("span", "scatter-base-label chart-base-label", `ROAS ทั้งเล่ม ${baseline.toFixed(2)}`);
+    baseLabel.style.top = `${(display.baseY / layout.height) * 100}%`;
+    host.append(baseLabel);
   }
-  host.append(svg);
+  host.append(selected);
   const readout = el("p", "scatter-readout", "กดจุดเพื่อดูชื่อและตัวเลข และไฮไลต์แถวในตาราง");
   section.append(host, readout);
+  if (pinned.length) {
+    const peak = Math.max(...pinned.map((dot) => dot.roas));
+    section.append(el("p", "chart-note", `${pinned.length} แอด ROAS เกินกราฟ (สูงสุด ${peak.toFixed(2)})`));
+  }
   const skipped = points.length - layout.dots.length;
   if (skipped) section.append(el("p", "chart-note", `ไม่ลงจุด ${skipped} แอดที่หาร ROAS ไม่ได้`));
   parent.append(section);
@@ -260,7 +241,7 @@ function scatterDisplay(layout) {
   return {
     cap,
     baseY: layout.baseline == null ? null : yOf(layout.baseline),
-    yTicks: [0, cap / 2, cap].map((value) => ({ y: yOf(value), label: Number(value.toFixed(2)).toString() })),
+    yTicks: niceScatterTicks(cap).map((value) => ({ y: yOf(value), label: Math.abs(value) < 1e-9 ? "0" : Number(value.toFixed(2)).toString() })),
     place(dot) {
       const pinned = dot.roas > cap + 1e-6;
       let x = dot.x;
@@ -274,6 +255,13 @@ function scatterDisplay(layout) {
       return { x, y, pinned };
     },
   };
+}
+
+function niceScatterTicks(cap) {
+  const step = cap > 5 ? 1 : 0.5;
+  const ticks = [];
+  for (let value = 0; value < cap - step * 0.2; value += step) ticks.push(Number(value.toFixed(2)));
+  return ticks.length ? ticks : [0];
 }
 
 function shownTicks(ticks) {

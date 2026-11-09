@@ -228,8 +228,8 @@ test("November overview and Mind book stay on the selected period", async () => 
     await page.keyboard.press("Escape");
     await page.waitForFunction(() => !document.querySelector("#zoom[open]"));
     assert.match(await page.$eval(".scatter-block .chart-note", (node) => node.textContent), /ไม่แปลว่ากำไร/);
-    const xTicks = await page.$$eval(".scatter-chart .x-tick", (nodes) => nodes.map((node) => node.textContent));
-    const yTicks = await page.$$eval(".scatter-chart .y-tick", (nodes) => nodes.map((node) => node.textContent));
+    const xTicks = await page.$$eval(".scatter-host .x-tick", (nodes) => nodes.map((node) => node.textContent));
+    const yTicks = await page.$$eval(".scatter-host .y-tick", (nodes) => nodes.map((node) => node.textContent));
     assert.ok(xTicks.includes("฿0"));
     assert.ok(xTicks.some((label) => /฿\d+k/.test(label)));
     assert.ok(yTicks.some((label) => label === "0" || label.startsWith("0.")));
@@ -280,6 +280,7 @@ test("November overview and Mind book stay on the selected period", async () => 
     await page.click(".metric-reset");
     await page.waitForFunction(() => document.querySelector(".scan-count").textContent === "33/33 แอด");
     assert.equal(await page.$$eval(".scan-row", (nodes) => nodes.length), 33);
+    await page.$eval(".scatter-block", (node) => node.scrollIntoView({ block: "center" }));
     await page.screenshot({ path: "/opt/cursor/artifacts/mind-nov-unfiltered-1366.png" });
     await page.screenshot({ path: "/workspace/docs/progress/mind-nov-unfiltered-1366.png" });
 
