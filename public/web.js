@@ -1,12 +1,14 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261109t115";
-import { rates } from "/shared/metrics.js?v=20261109t115";
-import { comparisonRows } from "/shared/comparison.js?v=20261109t115";
-import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261109t115";
-import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261109t115";
-import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261109t115";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261109t115";
-import { OVERVIEW_METRICS, OVERVIEW_MONTHS, formatMetric, metricCell } from "/shared/history.js?v=20261109t115";
-import { filterAds, sortAds } from "/shared/ad-query.js?v=20261109t115";
+import { analysisItemId } from "/shared/analysis.js?v=20261109t116";
+import { rates } from "/shared/metrics.js?v=20261109t116";
+import { comparisonRows } from "/shared/comparison.js?v=20261109t116";
+import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261109t116";
+import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261109t116";
+import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261109t116";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261109t116";
+import { OVERVIEW_METRICS, OVERVIEW_MONTHS, formatMetric, metricCell } from "/shared/history.js?v=20261109t116";
+import { overviewCondition, periodAdBaseline, conditionTone, readMetric } from "/shared/condition.js?v=20261109t116";
+import { mergeAdsByName } from "/shared/ad-merge.js?v=20261109t116";
+import { filterAds, sortAds } from "/shared/ad-query.js?v=20261109t116";
 import {
   CREATOR_METRICS,
   UNKNOWN_LABEL,
@@ -17,8 +19,8 @@ import {
   reconcileCreators,
   sortCreators,
   unknownCreator,
-} from "/shared/creator-rank.js?v=20261109t115";
-import { renderPeriodChart, renderScatter, renderTrendChart } from "/chart-view.js?v=20261109t115";
+} from "/shared/creator-rank.js?v=20261109t116";
+import { renderPeriodChart, renderScatter, renderTrendChart } from "/chart-view.js?v=20261109t116";
 
 const BOOKS = [
   ["Mind", "ถือไพ่เหนือกว่า"],
@@ -132,15 +134,18 @@ function metricTable(bookTotals, bookId, name, opts) {
   title.append(open);
   section.append(title);
   section.append(el("p", "metric-scope", "เฉพาะรายการที่ยืนยันเล่มได้"));
+  section.append(el("p", "condition-legend", "เขียว = ดีกว่าค่าเฉลี่ยเล่มนี้ · แดง = แย่กว่า"));
   const scroller = el("div", "metric-scroll");
   const table = el("table", "metric-table");
   table.dataset.book = bookId;
   const head = el("tr", "");
   head.append(el("th", "metric-name", "เมตริก"));
   for (const period of OVERVIEW_MONTHS) {
-    const cell = el("th", period.kind === "partial" ? "month-col is-partial" : "month-col", period.short);
+    const cell = el("th", period.kind === "partial" ? "month-col is-partial" : "month-col", "");
     cell.dataset.period = period.id;
     cell.title = period.kind === "partial" ? `${period.label} ยังไม่ครบเดือน` : period.label;
+    cell.append(el("span", "month-label", period.short));
+    if (period.kind === "partial") cell.append(el("span", "month-partial", "ไม่เต็มเดือน"));
     head.append(cell);
   }
   const thead = el("thead", "");
@@ -151,11 +156,12 @@ function metricTable(bookTotals, bookId, name, opts) {
     row.append(el("th", "metric-name", metric.label));
     for (const period of OVERVIEW_MONTHS) {
       const value = metricCell(bookTotals, period.id, bookId, metric.key);
-      const cell = el("td", "metric-value cell-" + value.tone, value.text);
+      const condition = overviewCondition(bookTotals, period.id, bookId, metric.key, value.text);
+      const cell = el("td", "metric-value tone-" + condition.tone, value.text);
       cell.dataset.metric = metric.key;
       cell.dataset.period = period.id;
-      cell.title = value.basis;
-      cell.setAttribute("aria-label", `${metric.label} ${period.short} ${value.text}. ${value.basis}`);
+      cell.title = condition.basis;
+      cell.setAttribute("aria-label", `${metric.label} ${period.short} ${value.text}. ${condition.basis}`);
       row.append(cell);
     }
     body.append(row);
@@ -237,8 +243,9 @@ function bookTable(name, book, opts) {
     contentId: opts.contentId,
     statusId: opts.statusId,
   });
-  const filtered = filterAds(all, { key: query.appliedKey || query.filterKey, min: query.appliedMin || "", max: query.appliedMax || "" });
-  const rows = filtered.ok ? sortAds(filtered.rows, query.sortKey, query.sortDir) : sortAds(all, query.sortKey, query.sortDir);
+  const grouped = mergeAdsByName(all);
+  const filtered = filterAds(grouped, { key: query.appliedKey || query.filterKey, min: query.appliedMin || "", max: query.appliedMax || "" });
+  const rows = filtered.ok ? sortAds(filtered.rows, query.sortKey, query.sortDir) : sortAds(grouped, query.sortKey, query.sortDir);
   const head = el("header", "scan-top");
   const titles = el("div");
   titles.append(el("h2", "", `${name} · ${reportLabel(opts.reportId)}`));
@@ -261,10 +268,9 @@ function bookTable(name, book, opts) {
   if (!filtered.ok) wrap.append(el("p", "metric-filter-error", filtered.message || query.error));
   else if (query.error) wrap.append(el("p", "metric-filter-error", query.error));
   const scroller = el("div", "scan-scroll");
-  scroller.append(columnHead(baseline, query, opts));
-  const bookRate = rates(totals);
+  const bookBase = periodAdBaseline(totals);
   if (!rows.length) scroller.append(el("p", "web-sub", all.length ? "ไม่มีแอดในช่วงตัวเลขนี้" : "ไม่มีแอดในช่วงนี้"));
-  else rows.forEach((ad, index) => scroller.append(scanRow(ad, index + 1, baseline, bookRate, opts.status.ads_by_id[ad.adId], opts)));
+  else scroller.append(adTable(rows, bookBase, query, opts));
   wrap.append(scroller);
   return wrap;
 }
@@ -394,70 +400,103 @@ function metric(label, value, cue) {
   return cell;
 }
 
-function columnHead(baseline, query, opts) {
-  const head = el("div", "scan-head scan-cols");
-  head.append(el("span", "scan-rank", "#"));
-  const name = el("span", "scan-name", "ข้อความแอด");
-  head.append(name);
-  head.append(el("span", "", "Creator"));
-  head.append(el("span", "", "Content"));
+let selectedAdIds = "";
+
+function adTable(rows, bookBase, query, opts) {
+  const table = document.createElement("table");
+  table.className = "ad-table";
+  const colgroup = document.createElement("colgroup");
+  for (const width of ["40px", "320px", "110px", "90px", "96px", "96px", "96px", "96px", "96px", "96px", "96px", "96px", "96px"]) {
+    const col = document.createElement("col");
+    col.style.width = width;
+    colgroup.append(col);
+  }
+  table.append(colgroup);
+  const head = document.createElement("tr");
+  head.className = "scan-head";
+  head.append(el("th", "num", "#"));
+  head.append(el("th", "name", "ชื่อแอด"));
+  head.append(el("th", "", "Creator"));
+  head.append(el("th", "", "Content"));
   for (const [key, label] of QUERY_METRICS) {
+    const cell = el("th", "num", "");
     const button = el("button", "sort-key", label + (query.sortKey === key ? (query.sortDir === "desc" ? " ↓" : " ↑") : ""));
     button.type = "button";
     button.dataset.sort = key;
     button.setAttribute("aria-sort", query.sortKey === key ? (query.sortDir === "asc" ? "ascending" : "descending") : "none");
-    if (key === "roas" && baseline != null) button.title = `เส้นเล่ม ${baseline.toFixed(2)} เป็นยอดทั้งช่วง`;
-    button.addEventListener("click", () => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
       const dir = query.sortKey === key && query.sortDir === "desc" ? "asc" : "desc";
       opts.onQuery({ ...query, sortKey: key, sortDir: dir, error: "" });
     });
-    head.append(button);
+    cell.append(button);
+    head.append(cell);
   }
-  head.append(el("span", "", ""));
-  return head;
+  const thead = document.createElement("thead");
+  thead.append(head);
+  const body = document.createElement("tbody");
+  rows.forEach((ad, index) => body.append(adRow(ad, index + 1, bookBase, opts)));
+  table.append(thead, body);
+  return table;
 }
 
-function scanRow(ad, index, baseline, bookRate, record, opts) {
+function adRow(ad, index, bookBase, opts) {
   const rate = rates(ad);
-  const row = el("article", "scan-row scan-cols");
-  row.dataset.adId = ad.adId;
-  row.append(el("span", "scan-rank", String(index)));
-  const name = el("div", "scan-name");
-  const title = el("button", "ad-name", ad.adName);
-  title.type = "button";
-  title.title = ad.adName;
-  title.setAttribute("aria-label", ad.adName);
-  title.addEventListener("click", () => openDetail(ad, record, opts));
-  name.append(title);
-  row.append(name);
+  const row = document.createElement("tr");
+  row.className = "scan-row";
+  const ids = ad.memberIds || [String(ad.adId)];
+  row.dataset.adId = String(ad.adId);
+  row.dataset.adIds = ids.join(" ");
+  if (selectedAdIds && ids.join(" ") === selectedAdIds) row.classList.add("is-selected");
   row.tabIndex = 0;
-  row.addEventListener("click", (event) => {
-    if (event.target.closest("a, .pick-btn, .ad-name")) return;
-    openDetail(ad, record, opts);
-  });
+  const open = () => {
+    selectedAdIds = ids.join(" ");
+    document.querySelectorAll(".scan-row.is-selected").forEach((node) => node.classList.remove("is-selected"));
+    row.classList.add("is-selected");
+    openDetail(ad, (opts.status.ads_by_id || {})[ad.adId], opts);
+  };
+  row.addEventListener("click", open);
   row.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") openDetail(ad, record, opts);
+    if (event.key === "Enter") open();
   });
-  const creator = el("span", "scan-creator", ad.creatorTag || "—");
+  row.append(el("td", "num", String(index)));
+  const name = el("td", "name", "");
+  const line = el("span", "ad-name-line", "");
+  const title = el("span", "ad-name", ad.adName);
+  title.title = ad.adName;
+  line.append(title);
+  if (ad.mergedCount > 1) line.append(el("span", "ad-merge", `· ${ad.mergedCount} แอด`));
+  name.append(line);
+  row.append(name);
+  const creator = el("td", "", ad.creatorTag || "—");
   creator.title = ad.creatorTag || "";
   row.append(creator);
+  const record = (opts.status.ads_by_id || {})[ad.adId];
   const content = contentBadge(record);
-  const month = el("span", "scan-content", content.id === "unknown" ? "ไม่ระบุ" : content.id);
+  const month = el("td", "", content.id === "unknown" ? "ไม่ระบุ" : content.id);
   month.title = content.text;
   row.append(month);
-  row.append(volumeNum("spend", baht(ad.spend)));
-  row.append(volumeNum("revenue", baht(ad.revenue)));
-  row.append(coloredNum("roas", rate.roas == null ? "—" : rate.roas.toFixed(2), metricTone("roas", rate.roas, baseline)));
-  row.append(volumeNum("chats", num(ad.chats)));
-  row.append(coloredNum("costPerMsg", rate.costPerMsg == null ? "—" : baht(rate.costPerMsg), metricTone("costPerMsg", rate.costPerMsg, bookRate.costPerMsg)));
-  row.append(coloredNum("cpm", rate.cpm == null ? "—" : baht(rate.cpm), metricTone("cpm", rate.cpm, bookRate.cpm)));
-  row.append(volumeNum("purchases", num(ad.purchases)));
-  row.append(coloredNum("cvrProxy", rate.cvrProxy == null ? "—" : (rate.cvrProxy * 100).toFixed(1) + "%", metricTone("cvrProxy", rate.cvrProxy, bookRate.cvrProxy)));
-  row.append(coloredNum("aov", rate.aov == null ? "—" : baht(rate.aov), metricTone("aov", rate.aov, bookRate.aov)));
-  const actions = el("span", "scan-actions");
-  if (!ad.metaOmitted) actions.append(pickButton(ad, opts));
-  row.append(actions);
-  if (opts.picks && opts.picks[analysisItemId(opts.reportId, ad.adId)]) row.classList.add("is-picked");
+  const shown = {
+    spend: baht(ad.spend),
+    revenue: baht(ad.revenue),
+    roas: rate.roas == null ? "—" : rate.roas.toFixed(2),
+    chats: num(ad.chats),
+    costPerMsg: rate.costPerMsg == null ? "—" : baht(rate.costPerMsg),
+    cpm: rate.cpm == null ? "—" : baht(rate.cpm),
+    purchases: num(ad.purchases),
+    cvrProxy: rate.cvrProxy == null ? "—" : (rate.cvrProxy * 100).toFixed(1) + "%",
+    aov: rate.aov == null ? "—" : baht(rate.aov),
+  };
+  for (const [key] of QUERY_METRICS) {
+    const value = readMetric(ad, key);
+    const baseline = bookBase ? bookBase[key] : null;
+    const tone = conditionTone(key, value, baseline);
+    const cell = el("td", "num tone-" + tone, shown[key]);
+    cell.dataset.metric = key;
+    cell.dataset.tone = tone;
+    cell.title = key === "spend" ? "Spend ไม่ได้ลงสี" : "เทียบค่าเฉลี่ยแอดของเล่มนี้ในช่วงที่เลือก";
+    row.append(cell);
+  }
   return row;
 }
 
@@ -834,11 +873,7 @@ function volumeNum(metric, text) {
 }
 
 function legend() {
-  const box = el("p", "tone-legend");
-  box.append(el("span", "cell-better", TONE_LABEL.better));
-  box.append(el("span", "cell-worse", TONE_LABEL.worse));
-  box.append(el("span", "cell-neutral", TONE_LABEL.neutral));
-  return box;
+  return el("p", "tone-legend", "เขียว = ดีกว่าค่าเฉลี่ยเล่มนี้ · แดง = แย่กว่า");
 }
 
 function compareLine(opts, book) {
@@ -905,7 +940,16 @@ function openDetail(ad, record, opts) {
     link.textContent = "ลิงก์โพสต์ที่มีอยู่";
     source.append(link);
   } else source.textContent = "ไม่มีลิงก์โพสต์ในชุดนี้";
-  document.getElementById("detail-note").textContent = "Revenue คือ omni_purchase ที่ Meta นับให้แอด ไม่ใช่ยอดขาย BEP. CVR คือ Purchases ÷ Messages ไม่ใช่ CVR ที่ Meta จับคู่. เส้นเล่มคือยอดทั้งช่วงที่เลือก ไม่ใช่เกณฑ์กำไร.";
+  const ids = ad.memberIds || [String(ad.adId)];
+  document.getElementById("detail-note").textContent = [
+    "Revenue คือ omni_purchase ที่ Meta นับให้แอด ไม่ใช่ยอดขาย BEP. CVR คือ Purchases ÷ Messages ไม่ใช่ CVR ที่ Meta จับคู่. เส้นเล่มคือยอดทั้งช่วงที่เลือก ไม่ใช่เกณฑ์กำไร.",
+    ids.length > 1 ? `รวม ${ids.length} แอด: ${ids.join(", ")}` : "",
+  ].filter(Boolean).join(" ");
+  if (!ad.metaOmitted && /^\d+$/.test(String(ad.adId))) {
+    const pick = pickButton(ad, opts);
+    pick.id = "detail-pick";
+    source.append(pick);
+  }
   if (!dialog.dataset.bound) {
     dialog.addEventListener("close", () => {
       if (detailReturn && detailReturn.focus) detailReturn.focus();

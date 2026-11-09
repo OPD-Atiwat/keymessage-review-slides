@@ -9,8 +9,8 @@ import {
   trendScale,
   trendSegments,
   trendSeries,
-} from "/shared/chart-data.js?v=20261109t115";
-import { metricCell } from "/shared/history.js?v=20261109t115";
+} from "/shared/chart-data.js?v=20261109t116";
+import { metricCell } from "/shared/history.js?v=20261109t116";
 
 const BOOK_COLOR = {
   Mind: "#1E2A5A",
@@ -205,7 +205,7 @@ export function renderScatter(parent, ads, baseline, opts) {
 
 function locateRow(adId) {
   document.querySelectorAll(".scan-row.is-located").forEach((node) => node.classList.remove("is-located"));
-  const row = document.querySelector(`.scan-row[data-ad-id="${adId}"]`);
+  const row = document.querySelector(`.scan-row[data-ad-ids~="${adId}"]`);
   if (!row) return;
   row.classList.add("is-located");
   row.scrollIntoView({ block: "nearest" });

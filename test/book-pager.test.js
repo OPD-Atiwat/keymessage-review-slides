@@ -91,7 +91,7 @@ test("each book shows every selected-month ad without a pager", async () => {
         book,
         period: "nov1_8",
       }).map((ad) => ad.adId).sort();
-      const shown = await page.$$eval(".scan-row", (nodes) => nodes.map((node) => node.dataset.adId).sort());
+      const shown = await page.$$eval(".scan-row", (nodes) => nodes.flatMap((node) => (node.dataset.adIds || "").split(" ").filter(Boolean)).sort());
       assert.deepEqual(shown, expected);
       assert.equal(await page.$(".scan-pager"), null);
       const banner = await page.$eval("#boot-error", (node) => (node.hidden ? "" : node.textContent));
@@ -100,8 +100,12 @@ test("each book shows every selected-month ad without a pager", async () => {
     await page.select("#report-period", "oct");
     await page.waitForSelector(".scan-row");
     await page.select("#report-period", "nov1_8");
-    await page.click(".scan-row .pick-btn");
-    await page.waitForFunction(() => document.querySelector(".scan-row .pick-btn").textContent.includes("เลือกแล้ว"));
+    await page.click(".scan-row");
+    await page.waitForSelector("#zoom[open] #detail-pick");
+    await page.click("#detail-pick");
+    await page.waitForFunction(() => document.querySelector("#detail-pick").textContent.includes("เลือกแล้ว"));
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.querySelector("#zoom[open]"));
     await page.click("[data-view='overview']");
     await page.waitForSelector(".metric-table");
     await page.reload({ waitUntil: "networkidle0" });
