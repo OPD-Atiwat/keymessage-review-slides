@@ -1,15 +1,15 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261109t118";
-import { rates } from "/shared/metrics.js?v=20261109t118";
-import { comparisonRows } from "/shared/comparison.js?v=20261109t118";
-import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261109t118";
-import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261109t118";
-import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261109t118";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261109t118";
-import { OVERVIEW_METRICS, OVERVIEW_MONTHS, formatMetric, metricCell } from "/shared/history.js?v=20261109t118";
-import { overviewCondition, periodAdBaseline, conditionTone, readMetric } from "/shared/condition.js?v=20261109t118";
-import { mergeAdsByName } from "/shared/ad-merge.js?v=20261109t118";
-import { contentMonthOptions, filterByContentMonth } from "/shared/content-month.js?v=20261109t118";
-import { filterAds, sortAds } from "/shared/ad-query.js?v=20261109t118";
+import { analysisItemId } from "/shared/analysis.js?v=20261109t119";
+import { rates } from "/shared/metrics.js?v=20261109t119";
+import { comparisonRows } from "/shared/comparison.js?v=20261109t119";
+import { FROZEN_PERFORMANCE } from "/shared/cutoff.js?v=20261109t119";
+import { changePct, metricTone, sameLengthBase, TONE_LABEL } from "/shared/conditional.js?v=20261109t119";
+import { contentBadge, STATUS_CHECKED_LABEL } from "/shared/status-labels.js?v=20261109t119";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261109t119";
+import { OVERVIEW_METRICS, OVERVIEW_MONTHS, formatMetric, metricCell } from "/shared/history.js?v=20261109t119";
+import { overviewCondition, periodAdBaseline, conditionTone, readMetric } from "/shared/condition.js?v=20261109t119";
+import { mergeAdsByName } from "/shared/ad-merge.js?v=20261109t119";
+import { contentMonthOptions, filterByContentMonth } from "/shared/content-month.js?v=20261109t119";
+import { filterAds, sortAds } from "/shared/ad-query.js?v=20261109t119";
 import {
   CREATOR_METRICS,
   UNKNOWN_LABEL,
@@ -20,8 +20,8 @@ import {
   reconcileCreators,
   sortCreators,
   unknownCreator,
-} from "/shared/creator-rank.js?v=20261109t118";
-import { renderPeriodChart, renderScatter, renderTrendChart } from "/chart-view.js?v=20261109t118";
+} from "/shared/creator-rank.js?v=20261109t119";
+import { renderPeriodChart, renderScatter, renderTrendChart } from "/chart-view.js?v=20261109t119";
 
 const BOOKS = [
   ["Mind", "ถือไพ่เหนือกว่า"],
@@ -647,14 +647,17 @@ function renderCreator(root, opts) {
     return;
   }
 
-  root.append(creatorChart(ranked, metric, opts, controls));
-  root.append(creatorTable(ranked, metric, sort, opts));
+  const split = el("div", "creator-split");
+  split.append(creatorChart(ranked, metric, opts, controls), creatorTable(ranked, metric, sort, opts));
+  root.append(split);
   if (unknown) root.append(unknownBlock(unknown, opts));
   if (opts.creatorFocus != null) root.append(creatorAds(groups, opts));
 
 }
 
-/** Provisional bars only. Replace this view when the data and design review lands. The table is the figure of record. */
+let creatorBarsOpen = false;
+
+/** Provisional bars only. The table lists every creator. The chart shows the top 10 unless opened. */
 function creatorChart(ranked, metric, opts, controls) {
   const section = el("section", "chart-block creator-chart");
   const head = el("div", "chart-head");
@@ -667,7 +670,8 @@ function creatorChart(ranked, metric, opts, controls) {
     section.append(el("p", "creator-note", "ไม่มี Creator ที่รู้ชื่อในช่วงนี้"));
     return section;
   }
-  for (const [index, row] of ranked.entries()) {
+  const shown = creatorBarsOpen || ranked.length <= 10 ? ranked : ranked.slice(0, 10);
+  for (const [index, row] of shown.entries()) {
     const value = row[metric.key];
     const missing = value == null || !Number.isFinite(Number(value));
     const width = !missing && max > 0 ? Math.max(0, Math.min(100, (Number(value) / max) * 100)) : 0;
@@ -687,6 +691,16 @@ function creatorChart(ranked, metric, opts, controls) {
     button.append(track);
     button.addEventListener("click", () => opts.onCreatorOpen(row.tag));
     section.append(button);
+  }
+  if (ranked.length > 10) {
+    const toggle = el("button", "creator-more", creatorBarsOpen ? "ดู 10 อันดับแรก" : `ดูทั้งหมด (${ranked.length})`);
+    toggle.type = "button";
+    toggle.setAttribute("aria-expanded", creatorBarsOpen ? "true" : "false");
+    toggle.addEventListener("click", () => {
+      creatorBarsOpen = !creatorBarsOpen;
+      if (opts.onCreatorBarsToggle) opts.onCreatorBarsToggle();
+    });
+    section.append(toggle);
   }
   return section;
 }

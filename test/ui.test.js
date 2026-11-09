@@ -307,6 +307,16 @@ test("November overview and Mind book stay on the selected period", async () => 
 
     await page.click("[data-view='creator']");
     await page.waitForSelector(".creator-table");
+    const barCount = await page.$$eval(".creator-bar", (nodes) => nodes.length);
+    const tableCount = await page.$$eval(".creator-row", (nodes) => nodes.length);
+    if (tableCount > 10) {
+      assert.equal(barCount, 10);
+      assert.match(await page.$eval(".creator-more", (node) => node.textContent), /ดูทั้งหมด/);
+      await page.click(".creator-more");
+      await page.waitForFunction((count) => document.querySelectorAll(".creator-bar").length === count, {}, tableCount);
+      await page.click(".creator-more");
+      await page.waitForFunction(() => document.querySelectorAll(".creator-bar").length === 10);
+    }
     assert.match(await page.$eval("h2", (node) => node.textContent), /เรียงตาม Spend/);
     assert.equal(await page.$eval("[data-creator-scope='all']", (node) => node.getAttribute("aria-pressed")), "true");
     assert.match(await page.$eval("body", (node) => node.textContent), /สินค้าไม่เหมือนกัน/);

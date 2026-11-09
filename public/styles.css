@@ -1186,8 +1186,23 @@ body.mode-web .period-bar, body.mode-web .creator-bar-fill {
 body.mode-web .period-end, body.mode-web .creator-bar-end { display: flex; align-items: baseline; gap: 8px; white-space: nowrap; }
 body.mode-web .period-value, body.mode-web .creator-bar-value { position: static; font-size: 14px; font-weight: 700; color: #1E1B4B; font-variant-numeric: tabular-nums; }
 body.mode-web .period-spend, body.mode-web .creator-bar-meta { position: static; display: inline; color: #6B6890; font-size: 12px; }
-body.mode-web .creator-bar { display: grid; grid-template-columns: minmax(120px, 200px) minmax(0, 1fr); min-height: 44px; border-radius: 10px; padding: 0 8px; }
-body.mode-web .creator-bar-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; font-weight: 500; }
+body.mode-web .creator-split { display: block; }
+@media (min-width: 1200px) {
+  body.mode-web .creator-split { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 16px; align-items: start; }
+}
+body.mode-web .creator-chart { padding: 10px 12px; }
+body.mode-web .creator-chart .chart-head { margin-bottom: 4px; }
+body.mode-web .creator-chart h3 { font-size: 14px; }
+body.mode-web .creator-controls { gap: 6px; }
+body.mode-web .creator-chart .creator-controls select,
+body.mode-web .creator-chart .creator-dir { height: 28px; font-size: 12px; padding: 0 8px; }
+body.mode-web .creator-more { margin-top: 4px; border: 0; background: transparent; color: #1E2A5A; font-size: 12px; font-weight: 600; padding: 0; }
+body.mode-web .period-row, body.mode-web .creator-bar { height: 20px; min-height: 20px; padding: 0 4px; margin: 0; }
+body.mode-web .creator-bar { display: grid; grid-template-columns: 120px minmax(0, 1fr); border-radius: 6px; }
+body.mode-web .creator-bar-name { width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-weight: 500; }
+body.mode-web .period-bar, body.mode-web .creator-bar-fill { height: 10px; }
+body.mode-web .creator-bar-value, body.mode-web .period-value { font-size: 12px; }
+body.mode-web .creator-bar-meta, body.mode-web .period-spend { font-size: 11px; }
 body.mode-web .creator-bar-fill { background: #5B5BD6; }
 body.mode-web .creator-bar-fill.is-top { background: #1E2A5A; }
 body.mode-web .book-switch { display: flex; flex-wrap: wrap; gap: 0; width: fit-content; max-width: 100%; background: #F6F4FC; border-radius: 999px; padding: 4px; margin: 0 0 16px; }
@@ -1305,7 +1320,7 @@ body.mode-web #detail-note { margin-top: 12px; padding-top: 12px; border-top: 1p
   body.mode-web .chart-block, body.mode-web .metric-book, body.mode-web .scan-sheet, body.mode-web .analysis-page { padding: 16px; }
   body.mode-web .trend-grid, body.mode-web .hero-main { grid-template-columns: 1fr; }
   body.mode-web .hero-rest, body.mode-web #detail-metrics { grid-template-columns: 1fr 1fr; }
-  body.mode-web .period-row, body.mode-web .creator-bar { grid-template-columns: 1fr; }
+  body.mode-web .period-row { grid-template-columns: 96px minmax(0, 1fr); }
   body.mode-web #zoom {
     width: 100vw;
     max-width: 100vw;

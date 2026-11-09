@@ -1,11 +1,11 @@
-import { analysisItemId } from "/shared/analysis.js?v=20261109t118";
-import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261109t118";
-import { TABLE_HEAD } from "/shared/labels.js?v=20261109t118";
-import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261109t118";
-import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261109t118";
-import { contentBadge } from "/shared/status-labels.js?v=20261109t118";
-import { renderWeb } from "/web.js?v=20261109t118";
-import { defaultCreatorDir } from "/shared/creator-rank.js?v=20261109t118";
+import { analysisItemId } from "/shared/analysis.js?v=20261109t119";
+import { changePct, metricTone, TONE_LABEL } from "/shared/conditional.js?v=20261109t119";
+import { TABLE_HEAD } from "/shared/labels.js?v=20261109t119";
+import { rates, sumTotals, volumeFlag } from "/shared/metrics.js?v=20261109t119";
+import { MAX_NOTE, NOTE_IDS, SLIDE_IDS } from "/shared/slides.js?v=20261109t119";
+import { contentBadge } from "/shared/status-labels.js?v=20261109t119";
+import { renderWeb } from "/web.js?v=20261109t119";
+import { defaultCreatorDir } from "/shared/creator-rank.js?v=20261109t119";
 
 const BOOKS = [
   { id: "Mind", name: "ถือไพ่เหนือกว่า", cls: "mind" },
@@ -1425,6 +1425,7 @@ function showWeb() {
       showWeb();
       rememberRoute(false);
     },
+    onCreatorBarsToggle: () => showWeb(),
     onCreatorMetric: (key) => {
       creatorSort = { key, dir: defaultCreatorDir(key) };
       showWeb();
